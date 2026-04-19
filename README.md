@@ -61,8 +61,8 @@ Flag by flag:
   The wide-open `Write/Edit/Read` globs in `.claude/settings.json`
   assume this flag.
 - `--chrome` — attaches the `claude-in-chrome` extension so Lilo can
-  drive a browser for skills like `tailor-resume` (Indeed/LinkedIn
-  fetches) and `job-apply` (Greenhouse/Lever form fill). Install the
+  drive a browser with DOM-aware automation (useful for any tool or
+  skill that needs to navigate, read, or fill web pages). Install the
   extension in Chrome first: https://claude.ai/download
 
 Wrap in tmux if you want the session to survive terminal restarts:
@@ -146,6 +146,29 @@ tools. Adding a new entry + restarting the MCP bridge makes it callable
 from Lilo automatically — no per-tool skills, no orchestrator code
 changes. Each tool exposes a `<tool>.doctor` action for on-demand health
 checks.
+
+## Agent registry
+
+`templates/team/.claude/agent-registry/` is the curated specialist
+roster PMs recruit from before falling back to any external marketplace.
+The roster is a mix of:
+
+- **Custom agents** — written for this orchestrator (e.g. `code`, the
+  scope-disciplined general implementer, plus PM-facing specialists like
+  `scraper`, `db-designer`, `api-integrator`, `devops`, `frontend`,
+  `data-pipeline`, `docs`, `test`, `security-reviewer`, `design-critic`,
+  `document-critic`)
+- **Imported from `everything-claude-code`** (github.com/affaan-m/everything-claude-code,
+  MIT-licensed) — reviewed for prompt-injection safety per agent before
+  import, lightly adapted. Includes `code-architect`, `code-reviewer`,
+  `code-simplifier`, `refactor-cleaner`, `performance-optimizer`,
+  `build-error-resolver`, `type-design-analyzer`, `silent-failure-hunter`,
+  `comment-analyzer`, `pr-test-analyzer`, `typescript-reviewer`,
+  `python-reviewer`, `tdd-guide`, `e2e-runner`, `doc-updater`,
+  `docs-lookup`, `a11y-architect`, `seo-specialist`
+
+See `templates/team/.claude/agent-registry/README.md` for the full
+roster with model tiers and use cases.
 
 ## Feedback loop
 

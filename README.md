@@ -179,13 +179,13 @@ roster with model tiers and use cases.
 
 PMs run on sonnet by default for cost and throughput. When a PM hits a
 judgment call that warrants a stronger model, it can consult a pooled
-opus-level reviewer via the built-in `advisor` tool. The tool takes no
+opus-level reviewer via Claude Code's built-in `/advisor`. It takes no
 arguments — it forwards the PM's full conversation transcript to opus
 and returns advice.
 
-The PM agent is already wired to call `advisor` before committing to a
-plan, before marking a build `done`, and when stuck. It's a no-op if
-the operator hasn't enabled it, so nothing breaks.
+The PM agent is already wired to invoke `/advisor` before committing
+to a plan, before marking a build `done`, and when stuck. It's a no-op
+if the operator hasn't enabled it, so nothing breaks.
 
 **To enable it once, at user level**, add to `~/.claude/settings.json`:
 
@@ -195,9 +195,9 @@ the operator hasn't enabled it, so nothing breaks.
 }
 ```
 
-That single line lights up the `advisor` tool for every Claude Code
-session — Lilo, every PM, and every specialist — without per-project
-wiring. Leave it unset to disable the feature repo-wide.
+That single line lights up `/advisor` for every Claude Code session —
+Lilo, every PM, and every specialist — without per-project wiring.
+Leave it unset to disable the feature repo-wide.
 
 ## Trust model
 

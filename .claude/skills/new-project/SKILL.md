@@ -24,8 +24,9 @@ mkdir -p "$DEST"
 (cd "$DEST" && git init -q)
 # Trailing /. copies dotfiles too — do NOT replace with /* or .claude/ is skipped.
 cp -R templates/team/. "$DEST"/
-# Substitute placeholder in every copied file.
-find "$DEST" -type f -not -path '*/.git/*' -exec sed -i '' "s/{{PROJECT_NAME}}/<name>/g" {} +
+# Substitute placeholder in every copied file. perl -pi is cross-platform
+# (sed -i differs between BSD/macOS and GNU/Linux).
+find "$DEST" -type f -not -path '*/.git/*' -exec perl -pi -e "s/\{\{PROJECT_NAME\}\}/<name>/g" {} +
 ```
 
 Verify: `ls -la ../<name>` and confirm `.claude/agents/`, `.claude/agent-registry/`,

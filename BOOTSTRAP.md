@@ -16,7 +16,12 @@ Two files are gitignored templates the operator needs locally. Check and create 
    ```
    Ask the operator if they want to add platform-specific MCPs (e.g. `ios-simulator` on macOS) and paste the snippet into their `.mcp.json` if yes.
 
-2. Tools-bridge venv — run the setup script if `tools/mcp-bridge/.venv/` doesn't exist:
+2. `tools/registry.json` — the bridge will boot with zero tools if this is missing (fine for a fresh clone). If the operator wants starter scaffolding, copy the example:
+   ```bash
+   [ -f tools/registry.json ] || cp tools/registry.example.json tools/registry.json
+   ```
+
+3. Tools-bridge venv — run the setup script if `tools/mcp-bridge/.venv/` doesn't exist:
    ```bash
    [ -d tools/mcp-bridge/.venv ] || ./tools/mcp-bridge/setup.sh
    ```

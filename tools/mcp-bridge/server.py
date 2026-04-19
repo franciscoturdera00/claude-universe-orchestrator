@@ -86,7 +86,24 @@ def ensure_tool_requirements(tool_name: str, tool_dir: Path) -> None:
 
 
 def load_registry(registry_path: Path) -> dict:
-    """Load and parse registry.json."""
+    """Load and parse registry.json.
+
+    On a fresh clone, registry.json is absent (it's gitignored — see
+    registry.example.json for the template). In that case the bridge
+    boots with zero tools rather than erroring out.
+    """
+    if not registry_path.exists():
+        example = registry_path.with_name("registry.example.json")
+        hint = (
+            f" Copy {example.name} to {registry_path.name} and add your tool"
+            f" entries."
+            if example.exists()
+            else ""
+        )
+        logger.info(
+            f"No registry at {registry_path} — starting with zero tools.{hint}"
+        )
+        return {"tools": []}
     try:
         with open(registry_path, "r") as f:
             return json.load(f)

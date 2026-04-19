@@ -113,14 +113,15 @@ inside Lilo to paste the bot token and set the access policy.
 ### First-run checklist
 
 1. Clone this repo into `<workspace>/claude-universe/orchestrator/`.
-2. Set up the tools-bridge venv so the `claude-universe-tools` MCP can
-   boot:
+2. *(Optional)* Set up the tools-bridge venv so the
+   `claude-universe-tools` MCP can boot:
    ```bash
    ./tools/mcp-bridge/setup.sh
    ```
    One-time; idempotent. Creates `tools/mcp-bridge/.venv/` and installs
-   `fastmcp` + adapter deps.
-3. Create your local MCP config from the template:
+   `fastmcp` + adapter deps. Skip if you don't plan to use the custom
+   tools bridge — Lilo still scaffolds projects without it.
+3. *(Optional)* Create your local MCP config from the template:
    ```bash
    cp .mcp.example.json .mcp.json
    ```
@@ -133,8 +134,9 @@ inside Lilo to paste the bot token and set the access policy.
      "args": ["-y", "ios-simulator-mcp"]
    }
    ```
-4. Install the Chrome extension (optional but recommended).
-5. Start Lilo with the launch command above.
+4. *(Optional)* Install the Chrome extension for DOM-aware browser
+   automation via `claude-in-chrome`.
+5. Start Lilo with the [launch command](#running-lilo).
 6. On the very first prompt, tell Lilo:
 
    ```

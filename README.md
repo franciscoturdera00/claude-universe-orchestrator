@@ -187,17 +187,15 @@ The PM agent is already wired to invoke `/advisor` before committing
 to a plan, before marking a build `done`, and when stuck. It's a no-op
 if the operator hasn't enabled it, so nothing breaks.
 
-**To enable it once, at user level**, add to `~/.claude/settings.json`:
+**To enable it once**, run this inside any Claude Code session:
 
-```json
-{
-  "advisorModel": "opus"
-}
+```
+/advisor opus
 ```
 
-That single line lights up `/advisor` for every Claude Code session —
-Lilo, every PM, and every specialist — without per-project wiring.
-Leave it unset to disable the feature repo-wide.
+That persists the setting at user level and lights up `/advisor` for
+every future Claude Code session — Lilo, every PM, and every
+specialist — without per-project wiring. Run `/advisor off` to disable.
 
 ## Trust model
 

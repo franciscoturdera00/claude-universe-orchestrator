@@ -6,6 +6,23 @@ Skip steps that are already done (e.g. if `USER.md` exists and looks filled in, 
 
 ---
 
+## Step 0 — Local config files
+
+Two files are gitignored templates the operator needs locally. Check and create if missing:
+
+1. `.mcp.json` — copy from `.mcp.example.json`:
+   ```bash
+   [ -f .mcp.json ] || cp .mcp.example.json .mcp.json
+   ```
+   Ask the operator if they want to add platform-specific MCPs (e.g. `ios-simulator` on macOS) and paste the snippet into their `.mcp.json` if yes.
+
+2. Tools-bridge venv — run the setup script if `tools/mcp-bridge/.venv/` doesn't exist:
+   ```bash
+   [ -d tools/mcp-bridge/.venv ] || ./tools/mcp-bridge/setup.sh
+   ```
+
+---
+
 ## Step 1 — Operator profile (`USER.md`)
 
 1. If `USER.md` does not exist, copy it from the template:

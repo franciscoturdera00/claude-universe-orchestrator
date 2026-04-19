@@ -105,17 +105,37 @@ Lilo only needs four MCP integrations to do its job:
 | Plugin channel | `telegram` | Inbound messaging + outbound replies so Lilo can reach the operator on their phone — required for the outbox relay loop to be useful |
 | Extension | `claude-in-chrome` | Paired with the `--chrome` flag above — DOM-aware browser automation |
 
-The first two are wired up by `.mcp.json` in this repo; the other two
-come from the `--channels` plugin and the `--chrome` extension. After
-first launch, run `/telegram:configure` inside Lilo to paste the bot
-token and set the access policy.
+The first two are defaults in `.mcp.example.json` (copy to `.mcp.json`
+on first clone); the other two come from the `--channels` plugin and
+the `--chrome` extension. After first launch, run `/telegram:configure`
+inside Lilo to paste the bot token and set the access policy.
 
 ### First-run checklist
 
 1. Clone this repo into `<workspace>/claude-universe/orchestrator/`.
-2. Install the Chrome extension (optional but recommended).
-3. Start Lilo with the launch command above.
-4. On the very first prompt, tell Lilo:
+2. Set up the tools-bridge venv so the `claude-universe-tools` MCP can
+   boot:
+   ```bash
+   ./tools/mcp-bridge/setup.sh
+   ```
+   One-time; idempotent. Creates `tools/mcp-bridge/.venv/` and installs
+   `fastmcp` + adapter deps.
+3. Create your local MCP config from the template:
+   ```bash
+   cp .mcp.example.json .mcp.json
+   ```
+   `.mcp.json` is gitignored — add any local MCPs you want. On macOS,
+   you can append the `ios-simulator` server (see
+   `docs/ios-simulator-setup.md` for host prereqs):
+   ```json
+   "ios-simulator": {
+     "command": "npx",
+     "args": ["-y", "ios-simulator-mcp"]
+   }
+   ```
+4. Install the Chrome extension (optional but recommended).
+5. Start Lilo with the launch command above.
+6. On the very first prompt, tell Lilo:
 
    ```
    bootstrap
@@ -248,15 +268,20 @@ registry's self-improvement loop.
 ## Sharing / cloning this repo
 
 This repo is meant to be cloned into `<anywhere>/claude-universe/orchestrator/`.
-The tools framework is in-repo at `./tools/`. After cloning:
+The tools framework is in-repo at `./tools/`. After cloning, follow the
+[First-run checklist](#first-run-checklist) above for the bridge venv
+and `.mcp.json` setup. A few notes:
 
-1. `.mcp.json` uses paths relative to this repo — no edits needed.
+1. `.mcp.example.json` ships minimal (claude-universe-tools +
+   playwright). Copy it to `.mcp.json` (gitignored) and add anything
+   platform-specific (e.g. `ios-simulator` on macOS).
 2. `.claude/settings.json` grants Lilo read/write in this repo and its
    parent directory so it can scaffold sibling projects; adjust if your
    layout differs.
 3. To register your own tools, copy `tools/registry.example.json` to
-   `tools/registry.json` and add entries. The MCP bridge reads
-   `registry.json` at startup and exposes every registered action.
+   `tools/registry.json` (also gitignored) and add entries. The MCP
+   bridge reads `registry.json` at startup and exposes every registered
+   action.
 
 ## Rules
 

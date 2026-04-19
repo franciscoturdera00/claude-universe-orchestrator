@@ -9,6 +9,24 @@ projects' `.lilo-inbox/` and `.lilo-outbox/`.
 
 `CLAUDE.md` is the source of truth for behavior. This file is the map.
 
+## Contents
+
+- [Expected layout](#expected-layout)
+- [Repo contents](#repo-contents)
+- [Running Lilo](#running-lilo)
+  - [Recommended MCPs](#recommended-mcps)
+  - [First-run checklist](#first-run-checklist)
+  - [Operator profile (`USER.md`)](#operator-profile-usermd)
+- [How the operator drives it](#how-the-operator-drives-it)
+- [Startup ritual](#startup-ritual)
+- [Tool registry](#tool-registry)
+- [Agent registry](#agent-registry)
+- [Advisor (opus on tap for sonnet PMs)](#advisor-opus-on-tap-for-sonnet-pms)
+- [Trust model](#trust-model)
+- [Feedback loop](#feedback-loop)
+- [Sharing / cloning this repo](#sharing--cloning-this-repo)
+- [Rules](#rules)
+
 ## Expected layout
 
 Lilo assumes this repo lives alongside its projects. The MCP tools

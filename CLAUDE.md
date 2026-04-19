@@ -46,6 +46,7 @@ The operator drives Lilo with natural-language requests. Most of them are handle
 - **`project-status`** — list sibling projects and live tmux sessions
 - **`team-ops`** — team-mode coordination: PM launch, outbox relay, agent-feedback aggregation
 - **`toolify`** — package a sibling project into the `tools/` framework so it's callable via the MCP bridge
+- **`find-agent`** — safely find, vet, and import a new specialist agent from an external source into the registry (mandatory prompt-injection scan before anything lands)
 
 ### bootstrap
 

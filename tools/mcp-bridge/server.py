@@ -110,6 +110,16 @@ def import_tool_adapter(
         The imported module, or None if import fails.
     """
     try:
+        # Reject paths that escape registry_dir via .. or absolute prefixes.
+        # Symlinks inside registry_dir (pointing at sibling projects) are fine —
+        # we only block traversal at the registry entry level.
+        tp = Path(tool_path)
+        if tp.is_absolute() or ".." in tp.parts:
+            logger.warning(
+                f"Rejected {tool_name!r}: path {tool_path!r} escapes tools/"
+            )
+            return None
+
         tool_dir = registry_dir / tool_path
         adapter_path = tool_dir / "adapters" / "mcp.py"
 

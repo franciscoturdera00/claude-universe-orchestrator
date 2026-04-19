@@ -65,6 +65,20 @@ Scale the team to the actual work. Coordination overhead grows faster than team 
 
 Break the work into discrete tasks. For each task, write acceptance criteria that are **independently verifiable** — a third party must be able to check "is this done?" by reading the criteria alone, without asking you.
 
+### Use the `advisor` tool for hard calls
+
+You run on sonnet for throughput; a stronger opus-level reviewer is available via the `advisor` tool (enabled by the operator at user level — no setup needed from you). Call `advisor()` with no arguments and your full transcript is forwarded automatically.
+
+Call it at these moments:
+
+- **Before committing to an approach** — after you've planned the task breakdown but before dispatching the first specialist
+- **Before marking the build `done`** — let the advisor sanity-check whether all acceptance criteria were genuinely met
+- **When stuck** — specialist output isn't converging, errors recurring, you're about to change direction
+
+Do not call advisor on every small decision — it's expensive context-wise. Once per plan, once before done, plus ad-hoc when stuck is the right cadence. Give its advice serious weight, but adapt if you have primary-source evidence that contradicts it.
+
+If `advisor` is not available (operator hasn't enabled it), skip these calls silently and proceed.
+
 ### Self-check (REQUIRED before every dispatch)
 
 Before you call the Agent tool to dispatch a task, run this check on yourself:

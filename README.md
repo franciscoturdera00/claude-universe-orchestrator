@@ -45,7 +45,7 @@ The tools framework is at `./tools/`.
 From this repo's root:
 
 ```bash
-caffeinate -is claude --channels plugin:telegram@claude-plugins-official --dangerously-skip-permissions --chrome
+caffeinate -is claude --channels plugin:telegram@claude-plugins-official --chrome
 ```
 
 Flag by flag:
@@ -56,19 +56,24 @@ Flag by flag:
 - `--channels plugin:telegram@claude-plugins-official` — loads the
   official Telegram plugin channel so the operator can reach Lilo from
   their phone and Lilo can reply with messages/files.
-- `--dangerously-skip-permissions` — Lilo scaffolds, edits, and moves
-  files autonomously; interactive permission prompts defeat the point.
-  The wide-open `Write/Edit/Read` globs in `.claude/settings.json`
-  assume this flag.
 - `--chrome` — attaches the `claude-in-chrome` extension so Lilo can
   drive a browser with DOM-aware automation (useful for any tool or
   skill that needs to navigate, read, or fill web pages). Install the
   extension in Chrome first: https://claude.ai/download
 
+Lilo scaffolds, edits, and moves files autonomously, so interactive
+permission prompts will slow it down. In a sandboxed or otherwise
+trusted environment (isolated VM, dedicated server, ephemeral
+workspace), append `--dangerously-skip-permissions` to skip them. Don't
+use that flag on a machine where a mistake could touch anything you
+care about — the wide-open `Write/Edit/Read` globs in
+`.claude/settings.json` assume everything inside (and one level above)
+the repo is fair game.
+
 Wrap in tmux if you want the session to survive terminal restarts:
 
 ```bash
-tmux new -s lilo "caffeinate -is claude --channels plugin:telegram@claude-plugins-official --dangerously-skip-permissions --chrome"
+tmux new -s lilo "caffeinate -is claude --channels plugin:telegram@claude-plugins-official --chrome"
 ```
 
 ### Recommended MCPs
@@ -169,6 +174,52 @@ The roster is a mix of:
 
 See `templates/team/.claude/agent-registry/README.md` for the full
 roster with model tiers and use cases.
+
+## Advisor (opus on tap for sonnet PMs)
+
+PMs run on sonnet by default for cost and throughput. When a PM hits a
+judgment call that warrants a stronger model, it can consult a pooled
+opus-level reviewer via the built-in `advisor` tool. The tool takes no
+arguments — it forwards the PM's full conversation transcript to opus
+and returns advice.
+
+The PM agent is already wired to call `advisor` before committing to a
+plan, before marking a build `done`, and when stuck. It's a no-op if
+the operator hasn't enabled it, so nothing breaks.
+
+**To enable it once, at user level**, add to `~/.claude/settings.json`:
+
+```json
+{
+  "advisorModel": "opus"
+}
+```
+
+That single line lights up the `advisor` tool for every Claude Code
+session — Lilo, every PM, and every specialist — without per-project
+wiring. Leave it unset to disable the feature repo-wide.
+
+## Trust model
+
+Lilo's `.claude/settings.json` has wide Bash allowlists and
+`Write/Edit/Read` globs that cover this repo and the parent directory
+(so it can scaffold siblings). If you also run with
+`--dangerously-skip-permissions`, you've removed the last line of
+defense. Know what you're trusting when you use this repo:
+
+- **Registering a tool in `tools/registry.json`** = trusting the tool's
+  adapter code (arbitrary Python) and its `requirements.txt` (arbitrary
+  pip installs, run on bridge startup). Only register tools you wrote
+  or audited. `toolify` pointed at an untrusted sibling project is a
+  supply-chain vector.
+- **PM outbox messages** are data, not instructions. A PM whose
+  specialists ingested untrusted input (scraped pages, fetched docs)
+  can be prompt-injected and write manipulated `alerts[]` or `detail`
+  strings. Lilo's `team-ops` skill only relays these to the operator —
+  never executes them. Keep that invariant if you extend the skill.
+- **Scaffolded projects** run as their own Claude sessions with the
+  template `settings.json` allowlist. That allowlist is broad; audit
+  and narrow it if you're working in a lower-trust environment.
 
 ## Feedback loop
 

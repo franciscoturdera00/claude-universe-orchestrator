@@ -34,10 +34,13 @@ agent-feedback.jsonl
 
 # Tools registry and non-framework subdirs (operator-specific; use registry.example.json as template)
 tools/registry.json
-tools/*/
-!tools/lib/
-!tools/mcp-bridge/
-!tools/templates/
+tools/*
+!tools/CLAUDE.md
+!tools/SCHEDULING.md
+!tools/registry.example.json
+!tools/lib
+!tools/mcp-bridge
+!tools/templates
 
 # MCP bridge lazy-install markers
 tools/mcp-bridge/.installed_reqs/

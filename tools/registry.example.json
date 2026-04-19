@@ -1,0 +1,5 @@
+{
+  "_schema": "Array of tools with name, description, path, adapter type, actions, and optional schedule.",
+  "_note": "Copy this file to registry.json and add your own tool entries. The MCP bridge reads registry.json at startup and exposes every registered action as an MCP tool.",
+  "tools": []
+}

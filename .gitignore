@@ -1,0 +1,46 @@
+# Runtime scratch from the Playwright MCP (page snapshots + console logs)
+.playwright-mcp/
+
+# Per-project comms dirs used by the team workflow (created at runtime)
+.lilo-inbox/
+.lilo-outbox/
+.team-state.json
+
+# Claude Code runtime state
+.claude/scheduled_tasks.lock
+.claude/scheduled_tasks.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+.env
+
+# macOS
+.DS_Store
+
+# Scratchpads
+scratchpad/
+
+# Operator profile — populated by bootstrap.sh from USER.md.example
+USER.md
+
+# Runtime accumulator, seeded empty in fresh clones
+agent-feedback.jsonl
+
+# Operator-specific skills (kept locally, not shipped)
+.claude/skills/tailor-resume/
+
+# Tools registry and non-framework subdirs (operator-specific; use registry.example.json as template)
+tools/registry.json
+tools/*/
+!tools/lib/
+!tools/mcp-bridge/
+!tools/templates/
+
+# MCP bridge lazy-install markers
+tools/mcp-bridge/.installed_reqs/
+
+# Tools framework venv
+tools/mcp-bridge/.venv/

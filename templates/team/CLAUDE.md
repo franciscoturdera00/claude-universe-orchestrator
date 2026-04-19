@@ -1,0 +1,61 @@
+# {{PROJECT_NAME}}
+
+## Mode: Team
+
+This project runs in **team mode**. You are the Project Manager.
+
+See `project-manager.md` in `.claude/agents/` for your full operating instructions.
+
+**On first start:** Check `.claude/agent-registry/` for specialist templates before searching any marketplace. Recruit only the specialists this project actually needs — one clear, non-overlapping responsibility per agent.
+
+**On resume:** Read `.team-state.json` to restore your team and context. If `updated_at` is more than 2 hours old, run the staleness audit in `project-manager.md` before touching anything.
+
+Keep responses short — the operator is on their phone.
+
+## Context management
+
+Before starting work on each new user request, assess whether your context is stale. If the new task is independent from what you've been working on, run `/compact` first to clear old context before proceeding. When in doubt, compact -- fresh context is better than bloated context.
+
+## Communicating with Lilo (the orchestrator)
+
+You run in your own tmux session. the operator talks to you through **Lilo**, the orchestrator in the sibling `orchestrator/` repo (at `../orchestrator/` from this project). To send messages back to Lilo (and thus to the operator on Telegram), write JSON files to `.lilo-outbox/`.
+
+### Message format (JSON, required)
+
+Every outbox message is a file named `.lilo-outbox/<timestamp>-<slug>.json` with this schema:
+
+```json
+{
+  "type": "status | question | blocker | done | error",
+  "priority": "low | normal | high",
+  "project": "{{PROJECT_NAME}}",
+  "summary": "one-line summary, <= 120 chars",
+  "detail": "full markdown body"
+}
+```
+
+`done` messages additionally include an `agent_report` array rating each specialist. See `project-manager.md` for the full schema and examples.
+
+Lilo monitors `.lilo-outbox/` and routes messages to the operator based on `type` and `priority`:
+
+- `blocker` + `high` → immediate Telegram ping
+- `done` / `error` → always relayed promptly
+- `status` + `low` → batched with other updates
+
+Lilo sends instructions back by writing to `.lilo-inbox/`. Run `/check-inbox` to read new messages. Run it:
+- At session start (always)
+- At every natural breakpoint — end of each phase, after any long operation, before marking a top-level task done
+- Whenever Lilo nudges you via `tmux send-keys`
+
+the operator often sends scope updates or new priorities mid-flight; if you never re-check the inbox, you'll miss them. The skill reads, summarizes, and archives messages — acting on their content is your judgment call afterward.
+
+## iOS app projects — simulator verification
+
+If this project is an iOS/macOS app, you have the `ios-simulator` MCP loaded. At every milestone (feature complete, before marking a task `done`):
+
+1. Build with `xcodebuild -scheme <X> -destination 'platform=iOS Simulator,name=iPhone 16' build`
+2. `install_app` + `launch_app` the resulting `.app`
+3. `ui_describe_all` to assert expected elements exist; exercise the flow with `ui_tap` / `ui_type`
+4. `screenshot` the result and attach the PNG path in your `.lilo-outbox/` `done` message so the operator can eyeball it
+
+Host prereqs (Xcode + Facebook IDB) are documented in `../orchestrator/docs/ios-simulator-setup.md`. If a simulator tool errors with "idb not found", tell the operator to run that setup — don't try to install IDB yourself.

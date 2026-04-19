@@ -1,0 +1,18 @@
+# Operator profile
+
+This file is loaded by `CLAUDE.md` via `@USER.md` and gives Lilo its operator-specific context. It is gitignored — copy from `USER.md.example` on first clone and fill in your own values.
+
+## Identity
+
+- **Name:** <your preferred handle or first name — Lilo will address you by this>
+- **Telegram chat_id:** <numeric id, used so Lilo can send proactive DMs; leave blank to disable>
+
+## Communication preferences
+
+- **Terseness:** short / verbose
+- **Primary channel:** Telegram / terminal / mixed
+- **Quiet hours:** <timezone + hours when Lilo should batch non-urgent relays>
+
+## Notes
+
+Anything else Lilo should know — role, working style, things to always/never do, project ownership.

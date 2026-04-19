@@ -1,0 +1,107 @@
+"""
+MCP adapter template for a claude_universe tool.
+
+This template demonstrates how to structure tool functions that return ToolResult
+and can be dynamically registered with the MCP bridge.
+"""
+
+import sys
+from pathlib import Path
+
+# Add tools/lib to sys.path so ToolResult can be imported when running via CLI.
+# When loaded via the MCP bridge, the bridge already injects tools/lib — this
+# block is for the CLI path only. The tool project is typically symlinked into
+# orchestrator/tools/<name>, so walk up from the real adapter location to find
+# the lib dir.
+_this = Path(__file__).resolve()
+for _candidate in (
+    _this.parents[2] / "tools" / "lib",             # tool under orchestrator/tools/<name>/adapters/mcp.py
+    _this.parents[2] / "orchestrator" / "tools" / "lib",  # tool sibling of orchestrator
+):
+    if _candidate.exists():
+        sys.path.insert(0, str(_candidate))
+        break
+
+from tool_base import ToolResult
+
+
+def example_action(param1: str, param2: int = 10) -> ToolResult:
+    """
+    Example tool action.
+
+    Args:
+        param1: A string parameter.
+        param2: An optional integer parameter (default 10).
+
+    Returns:
+        A ToolResult containing the action outcome.
+    """
+    try:
+        result_data = {
+            "param1": param1,
+            "param2": param2,
+            "processed": True,
+        }
+        return ToolResult(
+            success=True,
+            data=result_data,
+            message="Action completed successfully",
+        )
+    except Exception as e:
+        return ToolResult(
+            success=False,
+            data={},
+            message=f"Error: {e}",
+        )
+
+
+# TODO: add one function per registry action
+# Each function should:
+# - Accept parameters matching the registry action definition.
+# - Return a ToolResult instance.
+# - Include a docstring describing its purpose and parameters.
+
+
+def doctor() -> ToolResult:
+    """
+    REQUIRED self-check. Every tool adapter must implement this.
+
+    Verify that the tool's runtime prerequisites are satisfied:
+    - External binaries in PATH (CLI tools, rendering engines, etc.)
+    - API auth or credentials resolvable from env / config
+    - Required data files present and parseable (master configs, templates)
+    - Python imports succeed (heavy deps like playwright, python-docx, etc.)
+
+    Return ToolResult.success=True only if every check passes. On failure,
+    set success=False, put a list of failed checks in data["failed"], and use
+    alerts[] for anything Lilo should surface to the operator (e.g., "claude
+    CLI not logged in — pipeline will fail on next run").
+
+    Expected structure of data on success:
+        {"checks": [{"name": "claude-cli-present", "ok": true, "detail": "..."}]}
+
+    doctor() is invoked on demand by Lilo and may be scheduled periodically.
+    Keep it FAST (<5 seconds) and side-effect-free — no disk writes, no
+    network calls beyond what's strictly needed to verify auth.
+    """
+    checks = []
+    failed = []
+    alerts = []
+
+    # TODO: add real checks for this tool. Example patterns:
+    #
+    # import shutil
+    # if shutil.which("some-binary"):
+    #     checks.append({"name": "some-binary-present", "ok": True, "detail": shutil.which("some-binary")})
+    # else:
+    #     checks.append({"name": "some-binary-present", "ok": False, "detail": "not in PATH"})
+    #     failed.append("some-binary-present")
+    #     alerts.append("some-binary is not installed — tool will fail")
+
+    success = len(failed) == 0
+    return ToolResult(
+        success=success,
+        data={"checks": checks, "failed": failed},
+        message=f"{len(checks) - len(failed)}/{len(checks)} checks passed" if checks else "no checks implemented",
+        alerts=alerts,
+    )

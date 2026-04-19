@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "claude-universe-tools": {
+      "command": "./tools/mcp-bridge/.venv/bin/python",
+      "args": [
+        "./tools/mcp-bridge/server.py"
+      ]
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest", "--headless", "--isolated"]
+    },
+    "ios-simulator": {
+      "command": "npx",
+      "args": ["-y", "ios-simulator-mcp"]
+    }
+  }
+}

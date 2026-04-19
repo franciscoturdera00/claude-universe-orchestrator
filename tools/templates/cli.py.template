@@ -1,0 +1,61 @@
+"""
+CLI adapter template for a claude_universe tool.
+
+This template demonstrates how to structure a CLI that wraps tool functions
+and outputs ToolResult JSON to stdout.
+"""
+
+import argparse
+import sys
+from pathlib import Path
+
+# Add tools/lib to sys.path so tool_base can be imported. The tool's adapter
+# is typically symlinked into orchestrator/tools/<name>/, so walk up from the
+# real path to find tools/lib under the new or legacy layout.
+_this = Path(__file__).resolve()
+for _candidate in (
+    _this.parents[2] / "tools" / "lib",
+    _this.parents[2] / "orchestrator" / "tools" / "lib",
+):
+    if _candidate.exists():
+        sys.path.insert(0, str(_candidate))
+        break
+
+from tool_base import run_tool, setup_logging
+
+# Import adapters module (assumed to be in the same directory as this CLI).
+import adapters.mcp as mcp_adapters
+
+logger = setup_logging("cli")
+
+
+def main():
+    """Parse CLI arguments and dispatch to tool functions."""
+    parser = argparse.ArgumentParser(description="Tool CLI adapter")
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
+
+    # TODO: add subcommands matching adapters.mcp functions
+    # Example subcommand block:
+    # process_parser = subparsers.add_parser("process", help="Process data")
+    # process_parser.add_argument("input_file", help="Input file path")
+    # process_parser.add_argument("--format", default="json", help="Output format")
+
+    args = parser.parse_args()
+
+    if not args.command:
+        parser.print_help()
+        sys.exit(1)
+
+    # Dispatch to the appropriate function in mcp_adapters.
+    # Example dispatch (adjust based on actual functions):
+    # if args.command == "process":
+    #     result = run_tool(mcp_adapters.process, args.input_file, format=args.format)
+    #     print(result.to_json())
+    #     sys.exit(0 if result.success else 1)
+
+    parser.print_help()
+    sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

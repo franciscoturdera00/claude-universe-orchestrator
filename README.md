@@ -7,6 +7,10 @@ tool registry. Sibling project code is off-limits — Lilo only writes to
 this repo (which contains its own `tools/` framework) and sibling
 projects' `.lilo-inbox/` and `.lilo-outbox/`.
 
+**The loop that makes it useful:** build a project with Lilo → turn it
+into a tool via the `toolify` skill → Lilo calls that tool directly on
+future tasks. The [Tool registry](#tool-registry) section explains how.
+
 `CLAUDE.md` is the source of truth for behavior. This file is the map.
 
 ## Contents
@@ -169,11 +173,36 @@ Every new Lilo session must:
 
 ## Tool registry
 
-`./tools/registry.json` is the single source of truth for MCP-exposed
-tools. Adding a new entry + restarting the MCP bridge makes it callable
-from Lilo automatically — no per-tool skills, no orchestrator code
-changes. Each tool exposes a `<tool>.doctor` action for on-demand health
-checks.
+This is the "build a tool with Lilo, then let Lilo call it" loop. It
+closes the circle from scaffolding projects to using them as
+capabilities.
+
+**The workflow:**
+
+1. Ask Lilo to scaffold a new project (`new project: my-tool`). Build
+   whatever you want in there — a script, a pipeline, an API wrapper,
+   anything with a clear input/output.
+2. When it's working, ask Lilo to `toolify my-tool`. The `toolify`
+   skill packages the project against the standard tool interface and
+   registers it in `./tools/registry.json`.
+3. Restart the MCP bridge. That tool is now callable from Lilo as
+   `<my-tool>.<action>` (e.g. `my-tool.run`, `my-tool.doctor`). No
+   per-tool skill, no orchestrator code change — just a new entry in
+   the registry.
+4. Next time you ask Lilo for something that matches a registered
+   tool, it invokes the MCP action instead of shelling out or writing
+   the logic from scratch.
+
+This opens the door to anything you can script. A home-automation
+server, a fleet monitor for your own servers, a personal bookkeeping
+pipeline, a news scraper, a fitness log — scaffold it as a project,
+build it out, toolify it, and Lilo can call it. If you can write it,
+Lilo can invoke it.
+
+`./tools/registry.json` is the single source of truth for what's
+callable. Every tool exposes a `<tool>.doctor` action for on-demand
+health checks. `registry.example.json` ships an empty template for
+fresh clones.
 
 ## Agent registry
 

@@ -113,41 +113,24 @@ inside Lilo to paste the bot token and set the access policy.
 ### First-run checklist
 
 1. Clone this repo into `<workspace>/claude-universe/orchestrator/`.
-2. *(Optional)* Set up the tools-bridge venv so the
-   `claude-universe-tools` MCP can boot:
-   ```bash
-   ./tools/mcp-bridge/setup.sh
-   ```
-   One-time; idempotent. Creates `tools/mcp-bridge/.venv/` and installs
-   `fastmcp` + adapter deps. Skip if you don't plan to use the custom
-   tools bridge — Lilo still scaffolds projects without it.
-3. *(Optional)* Create your local MCP config from the template:
-   ```bash
-   cp .mcp.example.json .mcp.json
-   ```
-   `.mcp.json` is gitignored — add any local MCPs you want. On macOS,
-   you can append the `ios-simulator` server (see
-   `docs/ios-simulator-setup.md` for host prereqs):
-   ```json
-   "ios-simulator": {
-     "command": "npx",
-     "args": ["-y", "ios-simulator-mcp"]
-   }
-   ```
-4. *(Optional)* Install the Chrome extension for DOM-aware browser
-   automation via `claude-in-chrome`.
-5. Start Lilo with the [launch command](#running-lilo).
-6. On the very first prompt, tell Lilo:
+2. Start Lilo with the [launch command](#running-lilo).
+3. On the very first prompt, tell Lilo:
 
    ```
    bootstrap
    ```
 
    Lilo reads `BOOTSTRAP.md` and walks you through the rest
-   interactively: filling out `USER.md` via a few questions, suggesting
-   MCPs worth adding (Supabase, Playwright), setting up the Telegram
-   bot if you want phone relay, and optionally scaffolding a throwaway
-   project as a smoke test.
+   interactively: creating `.mcp.json` from the template, running the
+   tools-bridge setup, filling out `USER.md` via a few questions,
+   offering platform-specific MCPs (e.g. `ios-simulator` on macOS),
+   setting up the Telegram bot if you want phone relay, and optionally
+   scaffolding a throwaway project as a smoke test.
+
+That's it — no manual file copies or venv setup before launch. If you'd
+rather install the `claude-in-chrome` Chrome extension (DOM-aware
+browser automation) before starting, you can — but it's optional and
+Lilo will work without it.
 
 ### Operator profile (`USER.md`)
 
@@ -271,12 +254,13 @@ registry's self-improvement loop.
 
 This repo is meant to be cloned into `<anywhere>/claude-universe/orchestrator/`.
 The tools framework is in-repo at `./tools/`. After cloning, follow the
-[First-run checklist](#first-run-checklist) above for the bridge venv
-and `.mcp.json` setup. A few notes:
+[First-run checklist](#first-run-checklist) — `bootstrap` handles the
+bridge venv, `.mcp.json`, and any platform-specific MCPs
+interactively. A few notes for the curious:
 
 1. `.mcp.example.json` ships minimal (claude-universe-tools +
-   playwright). Copy it to `.mcp.json` (gitignored) and add anything
-   platform-specific (e.g. `ios-simulator` on macOS).
+   playwright). Bootstrap copies it to `.mcp.json` (gitignored) and
+   offers platform-specific additions like `ios-simulator` on macOS.
 2. `.claude/settings.json` grants Lilo read/write in this repo and its
    parent directory so it can scaffold sibling projects; adjust if your
    layout differs.

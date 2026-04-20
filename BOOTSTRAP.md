@@ -8,13 +8,25 @@ Skip steps that are already done (e.g. if `USER.md` exists and looks filled in, 
 
 ## Step 0 — Local config files
 
-Two files are gitignored templates the operator needs locally. Check and create if missing:
+Three gitignored templates the operator needs locally. Check and create if missing:
 
 1. `.mcp.json` — copy from `.mcp.example.json`:
    ```bash
    [ -f .mcp.json ] || cp .mcp.example.json .mcp.json
    ```
-   Ask the operator if they want to add platform-specific MCPs (e.g. `ios-simulator` on macOS) and paste the snippet into their `.mcp.json` if yes.
+
+   Then offer platform-specific additions:
+
+   - **macOS**: ask "Want me to wire up the iOS simulator MCP? It needs Xcode + Facebook IDB on the host (see `docs/ios-simulator-setup.md`)." If yes, edit `.mcp.json` to add the `ios-simulator` server inside `mcpServers`:
+     ```json
+     "ios-simulator": {
+       "command": "npx",
+       "args": ["-y", "ios-simulator-mcp"]
+     }
+     ```
+     Use the Edit tool — don't tell the operator to hand-edit. If they say no or are on non-macOS, skip.
+
+   - **Any platform**: ask "Are there other MCPs you know you want upfront (Supabase, Notion, etc.)?" — most are account-level via Claude settings (covered in Step 2), but if the operator names one that's an in-repo server they want now, add it to `.mcp.json` for them.
 
 2. `tools/registry.json` — the bridge will boot with zero tools if this is missing (fine for a fresh clone). If the operator wants starter scaffolding, copy the example:
    ```bash
@@ -25,6 +37,10 @@ Two files are gitignored templates the operator needs locally. Check and create 
    ```bash
    [ -d tools/mcp-bridge/.venv ] || ./tools/mcp-bridge/setup.sh
    ```
+   One-time; idempotent. Installs `fastmcp` + adapter deps into
+   `tools/mcp-bridge/.venv/`.
+
+4. **Chrome extension (optional)**: if the launch command included `--chrome`, mention the `claude-in-chrome` extension gives DOM-aware browser automation. If it's not installed, point the operator at the extension store — do NOT try to install it yourself. If the operator doesn't want browser automation, skip.
 
 ---
 

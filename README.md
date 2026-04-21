@@ -7,9 +7,8 @@ tool registry. Sibling project code is off-limits — Lilo only writes to
 this repo (which contains its own `tools/` framework) and sibling
 projects' `.lilo-inbox/` and `.lilo-outbox/`.
 
-**The loop that makes it useful:** build a project with Lilo → turn it
-into a tool via the `toolify` skill → Lilo calls that tool directly on
-future tasks. The [Tool registry](#tool-registry) section explains how.
+Projects you build here can be packaged as tools Lilo calls directly —
+see [Tool registry](#tool-registry).
 
 `CLAUDE.md` is the source of truth for behavior. This file is the map.
 
@@ -137,10 +136,6 @@ inside Lilo to paste the bot token and set the access policy.
    offering platform-specific MCPs (e.g. `ios-simulator` on macOS),
    setting up the Telegram bot if you want phone relay, and optionally
    scaffolding a throwaway project as a smoke test.
-
-That's it — no manual file copies or venv setup before launch. The
-Chrome extension prerequisite is covered at the top of
-[Running Lilo](#running-lilo).
 
 ### Verify the setup works
 

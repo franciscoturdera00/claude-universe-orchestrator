@@ -33,17 +33,18 @@ future tasks. The [Tool registry](#tool-registry) section explains how.
 
 ## Expected layout
 
-Lilo assumes this repo lives alongside its projects. The MCP tools
-framework lives inside this repo, not as a sibling:
+Scaffolded projects are **siblings** of this repo — they sit next to
+`orchestrator/` in a shared `claude-universe/` directory, not inside
+it. The MCP tools framework, by contrast, lives inside this repo.
 
     claude-universe/
       orchestrator/        <- this repo (Lilo runs here)
         tools/             <- MCP tools bridge + registry (in-repo)
-      <project-a>/         <- scaffolded project
-      <project-b>/         <- scaffolded project
+      my-project/          <- scaffolded project, path: ../my-project/
+      another-project/     <- path: ../another-project/
 
-Sibling projects live at `../<name>/` relative to the orchestrator root.
-The tools framework is at `./tools/`.
+From Lilo's working directory, every project is reachable at
+`../<name>/`. The tools framework is at `./tools/`.
 
 ## Repo contents
 
@@ -63,6 +64,12 @@ The tools framework is at `./tools/`.
         team/                # PM scaffold: agent-registry, agents/, skills/, CLAUDE.md
 
 ## Running Lilo
+
+**Prerequisite (one-time):** install the `claude-in-chrome` Chrome
+extension from https://claude.ai/download. The launch command below
+assumes it's installed; without it, `--chrome` is a no-op and
+browser-driven tools won't work. Skip only if you don't want DOM-aware
+browser automation at all — in that case, drop the `--chrome` flag.
 
 From this repo's root:
 
@@ -131,10 +138,29 @@ inside Lilo to paste the bot token and set the access policy.
    setting up the Telegram bot if you want phone relay, and optionally
    scaffolding a throwaway project as a smoke test.
 
-That's it — no manual file copies or venv setup before launch. If you'd
-rather install the `claude-in-chrome` Chrome extension (DOM-aware
-browser automation) before starting, you can — but it's optional and
-Lilo will work without it.
+That's it — no manual file copies or venv setup before launch. The
+Chrome extension prerequisite is covered at the top of
+[Running Lilo](#running-lilo).
+
+### Verify the setup works
+
+Once `bootstrap` finishes, you should see confirmations for: `.mcp.json`
+written, tools-bridge venv ready, `USER.md` populated, and (if you
+opted in) Telegram bot wired with a working `chat_id`. Quick smoke
+tests:
+
+- `status` — should list sibling projects (empty on first boot) and
+  live tmux sessions. No errors = MCP is reachable.
+- `new project smoke-test` — scaffolds a throwaway project and
+  auto-launches the PM in tmux. `tmux ls` should show a new session.
+  `nuke smoke-test` cleans up.
+- If Telegram is wired, DM your bot from your phone. You should see
+  the message arrive in Lilo's terminal within seconds, and Lilo's
+  reply should arrive back on Telegram. If not, run
+  `/telegram:access` to check the allowlist.
+- The outbox-sweep cron registers on every startup. If you want to
+  verify, ask Lilo directly — "is the outbox sweep registered?" — and
+  it'll check via `CronList`.
 
 ### Operator profile (`USER.md`)
 
@@ -154,7 +180,10 @@ descriptions under `.claude/skills/`, so you just say what you want:
 - `nuke <name>` — delete a sibling project (Lilo always confirms first)
 - `bootstrap` — first-run setup (USER.md, MCPs, Telegram)
 - Anything else actionable — Lilo checks the `claude-universe-tools` MCP
-  first and invokes a registered tool action before writing custom logic
+  first and invokes a registered tool action before writing custom logic.
+  To see what's currently registered: open `./tools/registry.json` or
+  ask Lilo (`"what tools are registered?"`). Every tool exposes a
+  `<tool>.doctor` action for a health check — e.g. `"run job-apply.doctor"`
 
 Team projects communicate back through
 `../<project>/.lilo-outbox/*.json`. Lilo sweeps them on a recurring cron

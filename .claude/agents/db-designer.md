@@ -1,1 +1,0 @@
-../../templates/team/.claude/agent-registry/db-designer.md

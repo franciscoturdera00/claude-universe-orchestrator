@@ -1,1 +1,0 @@
-../../templates/team/.claude/agent-registry/pr-test-analyzer.md

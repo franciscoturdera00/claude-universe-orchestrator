@@ -1,1 +1,0 @@
-../../templates/team/.claude/agent-registry/build-error-resolver.md

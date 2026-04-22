@@ -1,1 +1,0 @@
-../../templates/team/.claude/agent-registry/a11y-architect.md

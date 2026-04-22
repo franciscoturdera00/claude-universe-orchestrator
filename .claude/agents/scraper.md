@@ -1,0 +1,1 @@
+../../templates/team/.claude/agent-registry/scraper.md

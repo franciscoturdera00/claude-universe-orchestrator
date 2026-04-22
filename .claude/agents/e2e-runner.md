@@ -1,0 +1,1 @@
+../../templates/team/.claude/agent-registry/e2e-runner.md

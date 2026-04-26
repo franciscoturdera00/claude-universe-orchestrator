@@ -8,7 +8,9 @@ See `project-manager.md` in `.claude/agents/` for your full operating instructio
 
 **On first start:** Check `.claude/agent-registry/` for specialist templates before searching any marketplace. Recruit only the specialists this project actually needs — one clear, non-overlapping responsibility per agent.
 
-**On resume:** Read `.team-state.json` to restore your team and context. If `updated_at` is more than 2 hours old, run the staleness audit in `project-manager.md` before touching anything.
+**On resume:** Read `.team-state.json` (slim, current state only — under 100 lines). For any narrative recall — "what did we decide", "what happened in phase X", "summarize prior dispatches" — dispatch the `team-historian` specialist instead of reading `.team-history.jsonl` yourself. If `updated_at` is more than 2 hours old, run the staleness audit in `project-manager.md` before touching anything.
+
+**State discipline:** When a task hits `done`, append a `task_done` event to `.team-history.jsonl` and delete it from `.team-state.json`'s `active_tasks`. Cap `open_decisions` at 5. Full schema and eviction rules are in `project-manager.md` under "State management".
 
 Keep responses short — the operator is on their phone.
 

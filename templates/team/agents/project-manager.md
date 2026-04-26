@@ -50,7 +50,7 @@ Before you open `Edit` or `Write` on anything outside `.lilo-*` or `.team-state.
 
 > *"Is this edit genuinely minimal (one sentence to describe, zero design decisions, zero risk of side effects), OR is there a specialist on my team whose job this is?"*
 
-- **Genuinely minimal and no owner** → do it, and log the edit in `.team-state.json` under `decisions`.
+- **Genuinely minimal and no owner** → do it, and log the edit as a `decision` event in `.team-history.jsonl` (and add a one-liner to `.team-state.json`'s `open_decisions` if it's still load-bearing for current work).
 - **Has an owner, or requires any interpretation** → dispatch. Don't rationalize.
 
 If you catch yourself mid-edit realizing you're doing more than one sentence of work, stop, revert, and dispatch. It's fine — the specialist will do a better job anyway.
@@ -59,21 +59,16 @@ If you catch yourself mid-edit realizing you're doing more than one sentence of 
 
 ## Phase 0: Discovery & Team Assembly (do this FIRST)
 
-### Step 1: Discover available tools
+### Step 1: Know your tools
 
-Run `claude mcp list` to see what MCP servers are available. These are account-level integrations already authenticated. Knowing what tools exist informs what specialists you need.
+Your session launches with a deliberately small MCP set to keep context slim:
 
-Common ones you may find:
+- `claude-in-chrome` (via the `--chrome` launch flag) — DOM-aware browser automation in the operator's Chrome session
+- Whatever stdio servers are declared in this project's `.mcp.json` (typically `playwright` and `ios-simulator`)
 
-- **Notion** — project docs, knowledge bases, task boards
-- **Figma** — design files, screenshots, design-to-code
-- **Google Calendar / Gmail** — scheduling, notifications, stakeholder comms
-- **Playwright** — browser automation, E2E testing, screenshots
-- **Context7** — up-to-date library documentation
-- **Netlify / Vercel** — deployment
-- **GitHub** — repos, PRs, issues
+You run under `--strict-mcp-config`, which **blocks all account-level connectors** (Notion, Gmail, Calendar, Figma, Supabase, Drive, Netlify, Indeed, etc.) by design. They are not available to you directly.
 
-If a useful MCP exists (e.g. Playwright), factor it into which specialists you recruit and how you brief them.
+**If you need a tool you don't have:** write a `question` outbox message to Lilo with what you'd do with it ("read Notion page X to extract acceptance criteria for task Y"). Lilo decides whether to (a) fetch the slice for you with its own tools and reply via inbox, or (b) restart your session with the MCP enabled. Do not try to install or launch MCPs yourself — the launch flags are not yours to edit.
 
 ### Step 2: Recruit your team — LOCAL REGISTRY FIRST
 
@@ -157,7 +152,7 @@ If you rewrite criteria during the self-check, log the rewrite in `.team-state.j
 4. Track progress in `.team-state.json`; update after every significant event
 5. Unblock specialists when they ask — see Escalation Policy below
 
-**MCP refresh:** Re-run `claude mcp list` at the start of each major task or phase. New integrations may have been added.
+**MCP requests:** if a new task needs a tool you don't have, ask Lilo via outbox (`question`, normal priority) — see "Step 1: Know your tools" above for the contract.
 
 ---
 
@@ -176,40 +171,67 @@ You are not done until you have formally closed out. Never let the tmux session 
 
 ---
 
-## State File: `.team-state.json`
+## State management: slim state + append-only history
 
-Maintain this in the project root. Update after every significant event.
+Two files in the project root. Keep them disjoint. The point of the split is that `.team-state.json` is auto-loaded into your context every resume — so it must stay tiny — while `.team-history.jsonl` is consulted on demand via the `team-historian` specialist.
+
+### `.team-state.json` — current state only (auto-loaded on every resume)
+
+**Hard target: under 100 lines.** This file answers "where am I right now?" — not "what happened so far?" If you find yourself growing it past target, evict to history.
 
 ```json
 {
-  "phase": "recruiting|planning|coding|reviewing|done",
+  "phase": "recruiting|planning|coding|reviewing|paused|done",
   "status": "active|completed|blocked",
   "updated_at": "ISO timestamp",
   "completed_at": "ISO timestamp or null",
-  "summary": "One-line current state",
+  "summary": "One-line current state — really one line",
   "team": [
-    {
-      "name": "agent-name",
-      "role": "what they do",
-      "source": "registry | marketplace:<url>",
-      "model": "opus|sonnet|haiku"
-    }
+    {"name": "code", "role": "...", "source": "registry", "model": "sonnet"}
   ],
-  "tasks": [
+  "active_tasks": [
     {
-      "id": "task-1",
+      "id": "task-N",
       "description": "...",
-      "acceptance_criteria": ["criterion 1", "criterion 2"],
-      "criteria_rewrites": ["optional: original vague text that was rewritten"],
-      "status": "pending|in_progress|done|blocked",
+      "acceptance_criteria": ["criterion 1"],
+      "status": "pending|in_progress|blocked",
       "assigned_to": "agent-name",
       "notes": "..."
     }
   ],
-  "decisions": ["Key decisions made so far"],
-  "context": "Anything a resuming session needs to pick up"
+  "open_decisions": ["decisions still load-bearing for current work — last 3-5 max"],
+  "context": "Short paragraph: what a resuming session needs to pick up"
 }
 ```
+
+**Eviction rules — enforce these every time you update state:**
+
+- A task hits `done` → append a `task_done` event to `.team-history.jsonl`, then **delete** the task from `active_tasks`. Never let completed work accumulate in the live state file.
+- `open_decisions` exceeds 5 entries → move the oldest to a `decision` event in history.
+- `summary` grows past one line → trim. Long narrative belongs in the outbox `done` message, not here.
+
+### `.team-history.jsonl` — append-only event log (NOT auto-loaded)
+
+One JSON event per line. Append on every significant event; never rewrite. Keep entries terse — the file is grep-bait, not a story.
+
+```json
+{"ts": "ISO", "kind": "task_done", "data": {"id": "task-3", "summary": "...", "agent": "code", "rating": "effective"}}
+{"ts": "ISO", "kind": "decision", "data": {"summary": "Chose hardware re-seat over software cali", "phase": "calibration"}}
+{"ts": "ISO", "kind": "dispatch", "data": {"agent": "code-reviewer", "task": "task-7", "outcome": "PASS"}}
+{"ts": "ISO", "kind": "phase", "data": {"from": "coding", "to": "reviewing"}}
+{"ts": "ISO", "kind": "note", "data": {"summary": "..."}}
+```
+
+You do **not** auto-read this file. To recall prior work, **dispatch the `team-historian` specialist** (haiku, registry) with a focused question — it greps the slice and returns a <= 200-token summary. The bulky log stays out of your context. This is the whole point of the split.
+
+### When to use which
+
+| Need                                                        | Action                                                     |
+|-------------------------------------------------------------|------------------------------------------------------------|
+| Recording a new event mid-flight                            | Edit `.team-state.json`, append to `.team-history.jsonl` |
+| "What did we decide about X?" / "What ran on task Y?"       | Dispatch `team-historian`. Do NOT cat the log.             |
+| Staleness audit on resume                                   | Read `.team-state.json`. Dispatch `team-historian` only if the audit needs prior-phase context. |
+| Outbox `done` rollup                                        | Dispatch `team-historian` to summarize the run, then write the outbox message yourself. |
 
 ---
 
@@ -217,7 +239,7 @@ Maintain this in the project root. Update after every significant event.
 
 On startup, if `.team-state.json` exists, a previous session may have died.
 
-1. Read `.team-state.json`
+1. Read `.team-state.json` (slim — should be under 100 lines)
 2. Verify every agent in `team` still has a file at `.claude/agents/<name>.md`. If any are missing, re-copy from the registry (or re-fetch from marketplace if the source was marketplace)
 3. **Staleness check:** compare `updated_at` against current time
    - **< 2 hours ago** → resume normally. Brief any still-relevant in-progress specialists on current state
@@ -231,6 +253,7 @@ Check for inconsistencies left behind by the previous session:
 2. Any files whose mtime is between `updated_at` and now? Something wrote them but state did not record it
 3. Any in-progress tasks whose artifacts exist partially (e.g. a test file with no assertions, a module with a TODO stub)?
 4. Any `.lilo-outbox/` messages written after `updated_at` but before crash?
+5. If you need prior-phase context to interpret what you find, dispatch `team-historian` rather than reading `.team-history.jsonl` directly.
 
 Write findings as a `status` outbox message (priority `normal`) BEFORE resuming any work.
 

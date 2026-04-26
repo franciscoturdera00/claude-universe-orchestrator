@@ -37,8 +37,9 @@ Runs after the `new-project` skill has already copied `templates/team/` into `..
 4. Write the initial task to `../<name>/.lilo-inbox/<timestamp>-initial-task.md`. Content is whatever the operator described as the project goal.
 5. Launch the PM in a detached tmux session:
    ```bash
-   tmux new -d -s <name> "cd ../<name> && claude --dangerously-skip-permissions --chrome"
+   tmux new -d -s <name> "cd ../<name> && claude --dangerously-skip-permissions --chrome --strict-mcp-config --mcp-config .mcp.json"
    ```
+   `--strict-mcp-config` blocks all account-level connectors (Notion, Gmail, Calendar, Figma, Supabase, etc.) so the PM context stays slim. `--chrome` is a separate flag and is unaffected. Stdio MCPs are loaded only from the project's `.mcp.json` (currently `playwright` + `ios-simulator`). If a specific project asks for Notion/Gmail/etc., the operator chooses whether to drop `--strict-mcp-config` for that one launch (which inherits the entire connector set, all-or-nothing).
 6. Kick off the PM with the check-inbox nudge. **Send the text and the Enter as two separate `tmux send-keys` calls, with a brief sleep between.** A single call with inline `Enter` (or `C-m`) often queues the prompt into the input buffer without submitting it — the operator then sees an unsent prompt and has to nudge Lilo to press send. Two calls is reliable:
    ```bash
    tmux send-keys -t <name> "Run /check-inbox to read your first task, then start working. Run /check-inbox again at every natural breakpoint (end of phase, after long operations, whenever I nudge you) — new instructions from the operator land there asynchronously. Write status updates to .lilo-outbox/ as you go."

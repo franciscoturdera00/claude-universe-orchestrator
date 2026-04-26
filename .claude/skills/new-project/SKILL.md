@@ -24,13 +24,15 @@ mkdir -p "$DEST"
 (cd "$DEST" && git init -q)
 # Trailing /. copies dotfiles too — do NOT replace with /* or .claude/ is skipped.
 cp -R templates/team/. "$DEST"/
+# Drop the per-project registry copy — agents/ will symlink to the orchestrator's
+# registry in the team-ops launch step (single source of truth).
+rm -rf "$DEST"/.claude/agent-registry
 # Substitute placeholder in every copied file. perl -pi is cross-platform
 # (sed -i differs between BSD/macOS and GNU/Linux).
 find "$DEST" -type f -not -path '*/.git/*' -exec perl -pi -e "s/\{\{PROJECT_NAME\}\}/<name>/g" {} +
 ```
 
-Verify: `ls -la ../<name>` and confirm `.claude/agents/`, `.claude/agent-registry/`,
-and `CLAUDE.md` are all present.
+Verify: `ls -la ../<name>` and confirm `.claude/agents/` and `CLAUDE.md` are present.
 
 Then invoke the `team-ops` skill for the post-scaffold launch steps
 (inbox/outbox dirs, initial task file, tmux session, PM kickoff).

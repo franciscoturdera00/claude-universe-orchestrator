@@ -23,7 +23,8 @@
       "Bash(grep:*)",
       "Bash(chmod:*)",
       "Bash(caffeinate:*)",
-      "WebFetch"
+      "WebFetch",
+      "mcp__picarx__*"
     ],
     "deny": []
   },

@@ -17,31 +17,45 @@ Lilo's playbook for projects. Covers the three coordination duties that are core
 
 Runs after the `new-project` skill has already copied `templates/team/` into `../<name>/` and substituted `{{PROJECT_NAME}}`. Do these steps in order:
 
-1. Ensure the scaffold included `.claude/agents/`, `.claude/agent-registry/`, and `CLAUDE.md`. The `cp -R templates/team/. ../<name>/` line in the scaffold recipe handles this; verify with `ls -la ../<name>/.claude/`.
+1. Ensure the scaffold included `.claude/agents/` and `CLAUDE.md`. The `cp -R templates/team/. ../<name>/` line in the scaffold recipe handles this; verify with `ls -la ../<name>/.claude/`. Note: agent specs live in the orchestrator's registry and are symlinked in step 3 — no per-project `agent-registry/` copy.
 2. Create the comms dirs in the project:
    ```bash
    mkdir -p ../<name>/.lilo-inbox ../<name>/.lilo-outbox
    ```
-3. **Pre-populate `.claude/agents/` from the full registry BEFORE launching claude.** Claude Code only indexes subagents that exist in `.claude/agents/` at session start — anything copied in later is invisible to the `Agent` tool for the rest of that session, and the PM silently falls back to `general-purpose` dispatches with persona-prepended briefs. To make every registry agent dispatchable by name:
+3. **Symlink `.claude/agents/` to the orchestrator's registry — fresh scaffolds only.** Claude Code only indexes subagents that exist in `.claude/agents/` at session start. Use symlinks (not copies) so registry edits propagate to every project on next session start, with no per-project drift. **Skip this step on resume:** if `../<name>/.claude/agents/` already has files, do nothing — agents/manual edits there are intentional.
    ```bash
-   cp ../<name>/.claude/agent-registry/*.md ../<name>/.claude/agents/
-   # Keep the registry README out of the agents dir — it is not a subagent definition.
-   rm -f ../<name>/.claude/agents/README.md
+   # Fresh scaffold only — guard:
+   if [ -z "$(ls -A ../<name>/.claude/agents 2>/dev/null)" ]; then
+     for f in templates/team/.claude/agent-registry/*.md; do
+       base=$(basename "$f")
+       [ "$base" = "README.md" ] && continue
+       ln -sf "../../../orchestrator/templates/team/.claude/agent-registry/$base" "../<name>/.claude/agents/$base"
+     done
+   fi
    ```
-   The PM's "recruitment" phase still chooses which specialists to actually dispatch; pre-populating only makes them all *available* so the Agent tool resolves them.
+   The relative path resolves because every project is a sibling of `orchestrator/`. Adding a new spec to the registry later: re-run the loop in any project that should pick it up, or symlink the one new file manually. Customizing one agent for a single project: `rm` the symlink and replace it with a real file.
 4. Write the initial task to `../<name>/.lilo-inbox/<timestamp>-initial-task.md`. Content is whatever the operator described as the project goal.
 5. Launch the PM in a detached tmux session:
    ```bash
    tmux new -d -s <name> "cd ../<name> && claude --dangerously-skip-permissions --chrome"
    ```
-6. Kick off the PM with the check-inbox nudge:
+6. Kick off the PM with the check-inbox nudge. **Send the text and the Enter as two separate `tmux send-keys` calls, with a brief sleep between.** A single call with inline `Enter` (or `C-m`) often queues the prompt into the input buffer without submitting it — the operator then sees an unsent prompt and has to nudge Lilo to press send. Two calls is reliable:
    ```bash
-   tmux send-keys -t <name> "Run /check-inbox to read your first task, then start working. Run /check-inbox again at every natural breakpoint (end of phase, after long operations, whenever I nudge you) — new instructions from the operator land there asynchronously. Write status updates to .lilo-outbox/ as you go." Enter
+   tmux send-keys -t <name> "Run /check-inbox to read your first task, then start working. Run /check-inbox again at every natural breakpoint (end of phase, after long operations, whenever I nudge you) — new instructions from the operator land there asynchronously. Write status updates to .lilo-outbox/ as you go."
+   sleep 1
+   tmux send-keys -t <name> Enter
    ```
+   After nudging, verify submission with `tmux capture-pane -t <name> -p -S -10 | grep -i 'determining\|✳\|✶\|esc to interrupt'`. If the prompt is still sitting on the input line (`❯ Run /check-inbox…`) with no "Determining..." indicator, send another `Enter`.
 
 PM-side behavior (checking the local registry first, maintaining `.team-state.json`, staleness audits on resume) is documented in `templates/team/agents/project-manager.md` and does not need to be restated here.
 
-**Sending further instructions** to a running PM: write to `../<name>/.lilo-inbox/<timestamp>-<slug>.md`, then nudge with `tmux send-keys -t <name> "Run /check-inbox" Enter`.
+**Sending further instructions** to a running PM: write to `../<name>/.lilo-inbox/<timestamp>-<slug>.md`, then nudge with the same two-call pattern:
+```bash
+tmux send-keys -t <name> "Run /check-inbox"
+sleep 1
+tmux send-keys -t <name> Enter
+```
+Verify afterward with the same capture-pane check above.
 
 ---
 
@@ -93,7 +107,7 @@ Every `done` message includes an `agent_report` array rating each specialist on 
 
 Periodically (during status checks, or when asked) scan `agent-feedback.jsonl` and flag any agent meeting either threshold:
 
-- **3+ `poor` ratings** across different projects, OR
-- **5+ `adequate` ratings** with similar `notes` themes (same weakness recurring)
+- **2+ `poor` ratings** across different projects, OR
+- **4+ `adequate` ratings** with similar `notes` themes (same weakness recurring)
 
 When a threshold is hit, refine `templates/team/.claude/agent-registry/<agent>.md` — update the system prompt, tool scope, or constraints to address the recurring issue. Summarize the refinement and tell the operator what changed. **Do not wait to be asked** — this is the registry's self-improvement loop and only works if you run it.

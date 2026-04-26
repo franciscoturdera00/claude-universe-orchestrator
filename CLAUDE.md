@@ -78,6 +78,7 @@ You are connected to the `claude-universe-tools` MCP server (configured in `.mcp
 - `claude-universe-tools` — the tools bridge (see above)
 - `playwright` — headless Playwright for ad-hoc browser automation that isn't covered by the `claude-in-chrome` extension
 - `ios-simulator` — drives the Xcode iOS Simulator (install/launch/tap/type/screenshot/UI tree). Host prereqs (Xcode + Facebook IDB) in `docs/ios-simulator-setup.md`. Also bundled in `templates/team/.mcp.json` so PMs on app projects can verify their own builds.
+- `picarx` — SSE MCP on the Pi (`http://raspberrypi.local:8080/sse`) that drives **Stitch**, the robot. **Never call `mcp__picarx__*` tools directly from Lilo** — always dispatch via `Agent(stitch-operator, '<goal>')`. The `stitch-operator` subagent is scoped to picarx-only + haiku so it's cheap, token-light, and keeps robot-control context out of the orchestrator loop.
 
 Account-level MCPs (Notion, Figma, Gmail, Calendar, Telegram, etc.) come from Claude Code's config and are available without any wiring here.
 
@@ -85,17 +86,18 @@ Account-level MCPs (Notion, Figma, Gmail, Calendar, Telegram, etc.) come from Cl
 
 Single source of truth: `templates/team/.claude/agent-registry/*.md`. One spec per specialist (role, description, tool allowlist, model).
 
-- **PMs** inherit the full registry through scaffolding: `new-project` copies `templates/team/` into each sibling project; `team-ops` launch populates the new project's `.claude/agents/` from its local registry so Claude Code indexes every spec at PM session start. See `.claude/skills/team-ops/SKILL.md` for the exact flow.
+- **PMs** inherit the registry by symlink: `new-project` scaffolds the project, then `team-ops` symlinks every spec from `templates/team/.claude/agent-registry/` into the new project's `.claude/agents/`. Edits to a registry spec propagate to every project on next session start — no per-project copy, no drift. The symlink step runs only on a fresh scaffold; on resume an existing `.claude/agents/` is left alone (manual edits there are intentional). See `.claude/skills/team-ops/SKILL.md`.
 - **Lilo** symlinks a small curated subset of the registry into its own `.claude/agents/`. Not every specialist is relevant at the orchestrator level — Lilo delegates implementation work to PMs, not to specialists directly. The curated set is what Lilo itself might dispatch:
   - `code-reviewer` — review orchestrator/tools changes before committing
   - `security-reviewer` — security pass when adding MCPs, hooks, skills, or touching trust boundaries
   - `silent-failure-hunter` — hunt swallowed errors in hooks, skills, and orchestrator code
   - `document-critic` — review docs (README, BOOTSTRAP.md, CLAUDE.md)
   - `design-critic` — harsh quality critique of user-facing content in the repo
+  - `stitch-operator` — drives the PicarX robot (Stitch) via the `picarx` MCP. Haiku, scoped to picarx tools only. Dispatched for any "tell Stitch to..." request.
 
 Edits to any registry spec immediately affect Lilo's next dispatch of that specialist — the symlinks resolve at read time, no sync script.
 
-When you add or edit a registry spec: edit the file under `templates/team/.claude/agent-registry/`. PMs pick it up on next scaffold; running PMs keep whatever was copied at their launch time (re-sync via `cp templates/team/.claude/agent-registry/*.md ../<project>/.claude/agents/ && rm -f ../<project>/.claude/agents/README.md` if the PM needs the update mid-flight).
+When you add or edit a registry spec: edit the file under `templates/team/.claude/agent-registry/`. PMs that already have a symlink pick up edits on next session start. To make a NEW spec available in an existing project, add the symlink manually: `ln -sf ../../../orchestrator/templates/team/.claude/agent-registry/<name>.md ../<project>/.claude/agents/<name>.md`.
 
 If Lilo needs a new specialist in the curated set (something the orchestrator itself would dispatch, not something a PM would):
 ```bash

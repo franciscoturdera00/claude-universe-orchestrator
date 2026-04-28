@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
-# Render orchestrator/pipeline.md from the current state of every sibling
-# project in claude-universe/. Run from the orchestrator repo root or
-# anywhere — paths are absolute. Idempotent.
+# Render orchestrator/pipeline.md and orchestrator/pipeline.json from the
+# current state of every sibling project in claude-universe/. Idempotent.
+# pipeline.json is the structured source for the Notion upsert loop;
+# pipeline.md is the human-readable mirror for terminal inspection.
 
 set -euo pipefail
 
-ROOT="/Users/franciscoturdera/PersonalProjects/claude-universe"
-OUT="$ROOT/orchestrator/pipeline.md"
+# Resolve paths relative to the script's own location so the script works
+# regardless of caller cwd. Layout: orchestrator/.claude/skills/check-outbox/
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ORCHESTRATOR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+ROOT="$(cd "$ORCHESTRATOR/.." && pwd)"
+OUT_MD="$ORCHESTRATOR/pipeline.md"
+OUT_JSON="$ORCHESTRATOR/pipeline.json"
 
 LIVE_SESSIONS="$(tmux ls 2>/dev/null | cut -d: -f1 | sort -u || true)"
 
@@ -31,7 +37,18 @@ for dir in "$ROOT"/*/; do
   esac
 done
 
-render_project() {
+is_live() {
+  local p="$1"
+  [[ -n "$LIVE_SESSIONS" ]] && echo "$LIVE_SESSIONS" | grep -qx "$p"
+}
+
+count_outbox() {
+  find "$1" -maxdepth 1 -name '*.json' 2>/dev/null | wc -l | tr -d ' '
+}
+
+# ---------- Markdown emitter ----------
+
+render_project_md() {
   local p="$1"
   local state="$ROOT/$p/.team-state.json"
   local phase status updated summary team_count tasks_open
@@ -46,13 +63,11 @@ render_project() {
       | length)' "$state" 2>/dev/null || echo 0)"
 
   local live="idle"
-  if [[ -n "$LIVE_SESSIONS" ]] && echo "$LIVE_SESSIONS" | grep -qx "$p"; then
-    live="LIVE"
-  fi
+  is_live "$p" && live="LIVE"
 
   local outbox_pending outbox_archived
-  outbox_pending="$(find "$ROOT/$p/.lilo-outbox" -maxdepth 1 -name '*.json' 2>/dev/null | wc -l | tr -d ' ')"
-  outbox_archived="$(find "$ROOT/$p/.lilo-outbox/processed" -maxdepth 1 -name '*.json' 2>/dev/null | wc -l | tr -d ' ')"
+  outbox_pending="$(count_outbox "$ROOT/$p/.lilo-outbox")"
+  outbox_archived="$(count_outbox "$ROOT/$p/.lilo-outbox/processed")"
 
   printf '### %s -- %s (%s)\n' "$p" "$phase" "$status"
   printf '_Updated: %s | PM: %s | Team: %s | Open tasks: %s | Outbox: %s pending / %s archived_\n\n' \
@@ -74,7 +89,7 @@ render_project() {
   fi
 }
 
-recent_outbox() {
+recent_outbox_md() {
   find "$ROOT" -mindepth 4 -maxdepth 4 -path "*/.lilo-outbox/processed/*.json" \
     -not -path "*/orchestrator/*" 2>/dev/null \
     | xargs -I{} stat -f "%m %N" {} 2>/dev/null \
@@ -98,17 +113,17 @@ recent_outbox() {
 
   if [[ ${#active[@]} -gt 0 ]]; then
     printf '## Active\n\n'
-    for p in "${active[@]}"; do render_project "$p"; done
+    for p in "${active[@]}"; do render_project_md "$p"; done
   fi
 
   if [[ ${#paused[@]} -gt 0 ]]; then
     printf '## Paused / Blocked\n\n'
-    for p in "${paused[@]}"; do render_project "$p"; done
+    for p in "${paused[@]}"; do render_project_md "$p"; done
   fi
 
   if [[ ${#done_p[@]} -gt 0 ]]; then
     printf '## Done\n\n'
-    for p in "${done_p[@]}"; do render_project "$p"; done
+    for p in "${done_p[@]}"; do render_project_md "$p"; done
   fi
 
   if [[ ${#no_state[@]} -gt 0 ]]; then
@@ -118,12 +133,131 @@ recent_outbox() {
   fi
 
   printf '## Recent outbox activity (last 5 archived messages)\n\n'
-  out="$(recent_outbox)"
+  out="$(recent_outbox_md)"
   if [[ -z "$out" ]]; then
     printf '_No archived outbox messages._\n'
   else
     printf '%s\n' "$out"
   fi
-} > "$OUT"
+} > "$OUT_MD"
 
-echo "$OUT"
+# ---------- JSON emitter ----------
+
+project_json() {
+  local p="$1"
+  local state="$ROOT/$p/.team-state.json"
+  local pm_live=false
+  is_live "$p" && pm_live=true
+
+  local outbox_pending outbox_archived
+  outbox_pending="$(count_outbox "$ROOT/$p/.lilo-outbox")"
+  outbox_archived="$(count_outbox "$ROOT/$p/.lilo-outbox/processed")"
+
+  if [[ ! -f "$state" ]]; then
+    jq -n \
+      --arg name "$p" \
+      --arg local_path "$ROOT/$p/" \
+      --argjson pm_live "$pm_live" \
+      --argjson outbox_pending "$outbox_pending" \
+      --argjson outbox_archived "$outbox_archived" \
+      '{
+        name: $name,
+        local_path: $local_path,
+        has_state: false,
+        status: "solo",
+        pm_live: $pm_live,
+        outbox_pending: $outbox_pending,
+        outbox_archived: $outbox_archived
+      }'
+    return
+  fi
+
+  jq \
+    --arg name "$p" \
+    --arg local_path "$ROOT/$p/" \
+    --argjson pm_live "$pm_live" \
+    --argjson outbox_pending "$outbox_pending" \
+    --argjson outbox_archived "$outbox_archived" \
+    '{
+      name: $name,
+      local_path: $local_path,
+      has_state: true,
+      pm_live: $pm_live,
+      outbox_pending: $outbox_pending,
+      outbox_archived: $outbox_archived,
+      status: (.status // "unknown"),
+      phase: (.phase // null),
+      updated_at: (.updated_at // null),
+      summary: (.summary // ""),
+      context: (.context // ""),
+      team: (.team // []),
+      team_size: ((.team // []) | length),
+      open_decisions: (.open_decisions // []),
+      v2_scope: (.v2_scope // []),
+      active_tasks: (
+        (.active_tasks // .tasks // [])
+        | map(select((.status // "") | test("^(done|complete|completed|completed_with_issues|closed|finished|cancelled|canceled)$") | not))
+      ),
+      open_tasks_count: (
+        (.active_tasks // .tasks // [])
+        | map(select((.status // "") | test("^(done|complete|completed|completed_with_issues|closed|finished|cancelled|canceled)$") | not))
+        | length
+      )
+    }' "$state" 2>/dev/null || jq -n --arg name "$p" '{name: $name, has_state: false, status: "unparseable"}'
+}
+
+recent_outbox_json() {
+  find "$ROOT" -mindepth 4 -maxdepth 4 -path "*/.lilo-outbox/processed/*.json" \
+    -not -path "*/orchestrator/*" 2>/dev/null \
+    | xargs -I{} stat -f "%m %N" {} 2>/dev/null \
+    | sort -rn \
+    | head -10 \
+    | while read -r mtime path; do
+        local proj ts
+        proj="$(echo "$path" | sed -E "s|$ROOT/([^/]+)/.*|\1|")"
+        ts="$(date -r "$mtime" -u +'%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || echo "")"
+        jq -c \
+          --arg proj "$proj" \
+          --arg ts "$ts" \
+          '{timestamp: $ts, project: $proj, type: (.type // ""), priority: (.priority // ""), summary: (.summary // "")}' \
+          "$path" 2>/dev/null || true
+      done | jq -s '.'
+}
+
+projects_arr="$(
+  {
+    for p in "${active[@]}"; do project_json "$p"; done
+    for p in "${paused[@]}"; do project_json "$p"; done
+    for p in "${done_p[@]}"; do project_json "$p"; done
+    for p in "${no_state[@]}"; do project_json "$p"; done
+  } | jq -s '.'
+)"
+
+recent_arr="$(recent_outbox_json)"
+
+live_pms_arr="$(printf '%s\n' "${LIVE_SESSIONS}" | jq -R . | jq -s 'map(select(length > 0))')"
+
+jq -n \
+  --arg generated_at "$(date -u +%FT%TZ)" \
+  --argjson active "${#active[@]}" \
+  --argjson paused "${#paused[@]}" \
+  --argjson done "${#done_p[@]}" \
+  --argjson solo "${#no_state[@]}" \
+  --argjson live_pms "$live_pms_arr" \
+  --argjson projects "$projects_arr" \
+  --argjson recent_activity "$recent_arr" \
+  '{
+    generated_at: $generated_at,
+    snapshot: {
+      active: $active,
+      paused: $paused,
+      done: $done,
+      solo: $solo,
+      live_pms: $live_pms
+    },
+    projects: $projects,
+    recent_activity: $recent_activity
+  }' > "$OUT_JSON"
+
+echo "$OUT_MD"
+echo "$OUT_JSON"

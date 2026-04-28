@@ -40,7 +40,21 @@ Sweep `../*/.lilo-outbox/*.json` (excluding this orchestrator repo and any `proc
 
 4. After relay (or batching), move each processed file into the project's `.lilo-outbox/processed/` so the next sweep doesn't see it.
 
-5. For any `done` messages: run the registry-refinement aggregation per `team-ops` step 3 — append per-agent ratings to `./agent-feedback.jsonl`, then check thresholds (2+ `poor` across projects OR 4+ `adequate` with similar notes) and refine the affected `templates/team/.claude/agent-registry/<agent>.md` if needed. Tell the operator what changed.
+5. For any `done` messages: append per-agent ratings to `./agent-feedback.jsonl` per the canonical schema in team-ops section 3 (`rating` MUST be one of `poor` / `adequate` / `effective`).
+
+## Step 1.5 — Registry-refinement scan
+
+Run the deterministic aggregator on every tick (cron or manual). It scans `agent-feedback.jsonl` and surfaces any specialist meeting the team-ops thresholds:
+
+```bash
+.claude/skills/check-outbox/aggregate-feedback.sh
+```
+
+Output is JSON: `{flagged: [...], summary: {agents_seen, flagged_count, total_entries}}`.
+
+- `flagged_count == 0`: silent (don't surface noise to the operator).
+- `flagged_count > 0`: each entry has `agent`, `reasons[]`, `poor_count`, `poor_projects[]`, `adequate_count`, `adequate_notes[]`. Read `templates/team/.claude/agent-registry/<agent>.md`, eyeball the adequate-notes themes (the script flags candidates; only the LLM can judge whether the notes share a coherent weakness), and decide whether to refine the spec. If you do refine, summarize the change to the operator and tell them what file to commit.
+- Failures (jq missing, malformed feed) — surface the error briefly but don't abort the dashboard refresh.
 
 ## Step 2 — Refresh pipeline dashboard
 

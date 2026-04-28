@@ -104,11 +104,21 @@ Every `done` message includes an `agent_report` array rating each specialist on 
 {"project": "<name>", "timestamp": "<ISO>", "agent": "code", "rating": "adequate", "notes": "Struggled with async patterns"}
 ```
 
+### Canonical rating values
+
+`rating` MUST be one of three strings — anything else is rejected on append (and the aggregator's normalizer will skip it):
+
+- `poor` — agent failed the brief or shipped something the PM had to redo
+- `adequate` — agent delivered, but with notable gaps the PM had to patch (scope drift, missed edge cases, etc.)
+- `effective` — agent delivered cleanly; minor nits at most
+
+PMs writing `agent_report` entries MUST use these strings. Numbers, "good"/"excellent"/"not-used", or other variants are not part of the schema. Aliases like `1`/`5` or `good` are still tolerated by the historical normalizer for backfill, but new entries should be canonical from the start.
+
 ### Refinement thresholds
 
-Periodically (during status checks, or when asked) scan `agent-feedback.jsonl` and flag any agent meeting either threshold:
+`/check-outbox` step 1.5 invokes `.claude/skills/check-outbox/aggregate-feedback.sh` automatically on every tick (cron or manual). It reports any agent meeting either threshold:
 
 - **2+ `poor` ratings** across different projects, OR
-- **4+ `adequate` ratings** with similar `notes` themes (same weakness recurring)
+- **4+ `adequate` ratings** (theme inspection happens at the LLM layer — the script just flags candidates)
 
-When a threshold is hit, refine `templates/team/.claude/agent-registry/<agent>.md` — update the system prompt, tool scope, or constraints to address the recurring issue. Summarize the refinement and tell the operator what changed. **Do not wait to be asked** — this is the registry's self-improvement loop and only works if you run it.
+When a threshold is hit, refine `templates/team/.claude/agent-registry/<agent>.md` — update the system prompt, tool scope, or constraints to address the recurring issue. Summarize the refinement and tell the operator what changed. **Do not wait to be asked** — the script flags candidates; Lilo follows up.

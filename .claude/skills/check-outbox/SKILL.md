@@ -56,7 +56,33 @@ Run from the orchestrator repo root. Outputs `pipeline.md` (human inspection) an
 
 ### 2.2 Read state
 
-Read both files. From `pipeline-config.json` you need: `data_source_id`, `notion_page_id`, `project_rows` (cached `name → page_id` map). From `pipeline.json` you need: `snapshot`, `projects`, `recent_activity`.
+Read both files. From `pipeline-config.json` you need: `data_source_id`, `notion_page_id`, `project_rows` (cached per-project sync record), `parent_fingerprint` (cached inputs to the parent page). From `pipeline.json` you need: `snapshot`, `projects`, `recent_activity`.
+
+**Cache shape (per project):**
+
+```json
+"project_rows": {
+  "<name>": {
+    "page_id": "<uuid>",
+    "props": { ...exact property record last sent to Notion... },
+    "body_updated_at": "<ISO timestamp last used to render body, or null>"
+  }
+}
+```
+
+**Backward-compat:** if `project_rows[name]` is a bare string (legacy), treat it as `{page_id: <string>, props: {}, body_updated_at: null}` — both diffs will trip and the row will be fully re-synced once, then rewritten in the new shape during step 2.5.
+
+**Parent fingerprint shape:**
+
+```json
+"parent_fingerprint": {
+  "snapshot": {"active": N, "paused": N, "blocked": N, "done": N, "solo": N, "live_pms": ["..."]},
+  "what_next": [{"name": "...", "status": "...", "pm_live": false, "phase": "...", "next_action": "..."}, ...],
+  "recent_top5": ["<ts>|<project>|<type>|<summary>", ...]
+}
+```
+
+Missing or empty `parent_fingerprint` → treat as needing a full parent refresh.
 
 ### 2.3 Upsert each project row (parallel calls in one message)
 
@@ -64,7 +90,12 @@ For every entry in `pipeline.json.projects`:
 
 **Properties (always sent):**
 - `Name` ← `project.name`
-- `Status` ← `project.status` if it matches one of `["active","paused","blocked","done","solo"]`, else fall back: `paused` → `paused`, `unknown`/empty → `solo`. Long sentences in `.status` (e.g. job-apply) → `active`.
+- `Status` ← normalize `project.status`:
+  - direct match `["active","paused","blocked","done","solo"]` → use as-is
+  - `complete`, `completed`, `completed_with_issues`, `closed`, `finished` → `done`
+  - `in_progress` → `active`
+  - `unknown`, empty, null → `solo`
+  - anything else (long free-text statuses, e.g. job-apply) → `active`
 - `Phase` ← `project.phase || ""` (truncate to 60 chars)
 - `date:Updated:start` ← `project.updated_at` (only if non-null; omit otherwise)
 - `date:Updated:is_datetime` ← `1` (only if updated_at is non-null)
@@ -111,12 +142,22 @@ Skip the body refresh entirely for `has_state: false` (solo) projects — they h
 
 Omit any section whose source array is empty. If both `summary` and `context` are empty, the body is just `## Local path`.
 
-**Dispatch order per project:**
+**Skip-if-unchanged (cost control — this is the load-bearing optimization):**
 
-- If `project.name` IS a key in `config.project_rows`: call `notion-update-page` twice on the same `page_id` — first with `command: "update_properties"` carrying the properties block; second with `command: "replace_content"`, `allow_deleting_content: true`, `new_str: <composed body>`, empty `properties` and `content_updates`. Skip the second call for solo projects.
-- If `project.name` is NOT in `config.project_rows`: call `notion-create-pages` with `parent: {type: "data_source_id", data_source_id: config.data_source_id}` and a single page entry including BOTH the properties and (for non-solo) the `content` field with the composed body. Save the returned `id` in a local map keyed by name — you'll write it back to config in 2.5.
+For each project, compute the property record above as `current_props`. Then diff against the cache:
 
-**Make the calls in parallel** — issue all per-project tool calls in a single assistant message so they execute concurrently. Sequential mode is too slow at 14+ rows.
+- `props_changed` = `current_props != cached.props` (field-by-field equality; missing/legacy cache → always changed)
+- `body_changed` = `project.has_state` AND `project.updated_at != cached.body_updated_at` (state file mtime is a complete proxy for body change since every body section is sourced from `.team-state.json`; outbox counts and pm_live don't appear in the body)
+
+**Dispatch order per project (all in parallel — single assistant message for the whole batch):**
+
+- **Not in cache** (truly new project): call `notion-create-pages` with `parent: {type: "data_source_id", data_source_id: config.data_source_id}` and a single page entry including BOTH the properties and (for non-solo) the `content` field with the composed body. Save the returned `id` for step 2.5.
+- **In cache, both diffs false:** issue NO Notion calls for this project. The cached state already matches.
+- **In cache, only `props_changed`:** call `notion-update-page` once with `command: "update_properties"` on `cached.page_id`, carrying the properties block.
+- **In cache, only `body_changed`** (rare — implies state mtime moved without any property field shifting): call `notion-update-page` once with `command: "replace_content"`, `allow_deleting_content: true`, `new_str: <composed body>`, empty `properties` and `content_updates`. Skip for solo projects.
+- **In cache, both changed:** both calls (`update_properties` then `replace_content`).
+
+Issue every required call across all projects in a single assistant message so they execute concurrently. Steady-state ticks (no projects moved) issue zero per-project calls.
 
 ### 2.4 Regenerate the parent page
 
@@ -162,11 +203,39 @@ Next-action derivation (concise — one short clause):
 
 Truncate any next-action to 160 chars.
 
-Send via `notion-update-page`: `page_id: config.notion_page_id`, `command: "replace_content"`, `allow_deleting_content: true`, `new_str: <composed>`, empty `properties` and `content_updates`.
+**Skip-if-unchanged for the parent page:**
 
-### 2.5 Persist new row IDs
+Compute `current_fingerprint`:
 
-If you created any rows in 2.3 (i.e. project names not previously in `config.project_rows`), write the updated config back to `.claude/skills/check-outbox/pipeline-config.json` so the next tick uses the cached IDs instead of creating duplicates. Preserve all other fields. Use the Write tool, not Edit, since the file is small and JSON-shaped.
+```json
+{
+  "snapshot": pipeline.snapshot,                                    // {active, paused, blocked, done, solo, live_pms (sorted)}
+  "what_next": [{"name", "status", "pm_live", "phase", "next_action"}, ...],   // every bullet rendered above, in the order rendered
+  "recent_top5": ["<timestamp>|<project>|<type>|<summary>", ...]    // top 5 of recent_activity
+}
+```
+
+If `current_fingerprint` deep-equals `config.parent_fingerprint`, skip the parent-page call entirely. Otherwise send via `notion-update-page`: `page_id: config.notion_page_id`, `command: "replace_content"`, `allow_deleting_content: true`, `new_str: <composed>`, empty `properties` and `content_updates`. Cache the new fingerprint in step 2.5.
+
+### 2.5 Persist sync cache
+
+After dispatch (whether anything was sent or not), rewrite `.claude/skills/check-outbox/pipeline-config.json` so the next tick can skip unchanged rows. Use Write, not Edit — the file is small and JSON-shaped. Preserve unrelated fields (`notion_page_id`, `data_source_id`, paths, etc.).
+
+**For `project_rows`:** every project in `pipeline.json.projects` gets a fresh entry:
+
+```json
+"<name>": {
+  "page_id": "<existing cached id, or returned id from a 2.3 create>",
+  "props": <the exact current_props record you computed in 2.3>,
+  "body_updated_at": <project.updated_at, or null for solo>
+}
+```
+
+This is true even for projects whose diff was empty — rewriting the cache with the same values is a no-op but keeps the schema uniform. Drop entries for projects that no longer appear in `pipeline.json` (renamed/nuked).
+
+**For `parent_fingerprint`:** write the `current_fingerprint` you computed in 2.4, regardless of whether the parent page call was sent or skipped.
+
+If a Notion call failed in 2.3 or 2.4 for a specific project/parent, do NOT update its cache entry — leaving the old (or missing) cache forces a retry on the next tick. Successful calls update the cache; failures don't.
 
 ### 2.6 Failure handling
 

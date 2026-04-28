@@ -206,7 +206,7 @@ Two files in the project root. Keep them disjoint. The point of the split is tha
 
 **Eviction rules — enforce these every time you update state:**
 
-- A task hits `done` → append a `task_done` event to `.team-history.jsonl`, then **delete** the task from `active_tasks`. Never let completed work accumulate in the live state file.
+- A task hits `done` → run `/task-done <id> [--rating effective|adequate|poor]`. The skill appends the `task_done` event to history and deletes the task from `active_tasks` atomically. Don't do this by hand — the skill exists so the two-file step can't be half-done.
 - `open_decisions` exceeds 5 entries → move the oldest to a `decision` event in history.
 - `summary` grows past one line → trim. Long narrative belongs in the outbox `done` message, not here.
 

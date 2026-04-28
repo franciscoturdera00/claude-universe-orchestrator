@@ -20,7 +20,10 @@ operating procedure so imports never happen on vibes.
 
 ### 1. Search — cast a wide net
 
-Run at least TWO searches via WebSearch:
+Run at least TWO searches via WebSearch **in parallel** — issue both
+WebSearch tool calls in a single message, since the queries are
+independent and waiting for one to finish before starting the next is
+pure latency:
 
 - Generic: `awesome claude code agents <domain> github 2026`
 - Specific: `Claude Code subagent <specific capability> definition`

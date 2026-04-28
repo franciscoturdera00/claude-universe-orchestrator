@@ -1,0 +1,24 @@
+# PM coordination machinery — ephemeral, do not commit
+.lilo-inbox/
+.lilo-outbox/
+.team-state.json
+# .team-history.jsonl is intentionally NOT ignored — it's durable project memory across resumes.
+
+# Secrets / local env
+.env
+.env.local
+.env.*.local
+# Keep .env.example tracked.
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Editor cruft
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Append stack-specific entries below this line (Python __pycache__, Node node_modules, build artifacts, etc.)

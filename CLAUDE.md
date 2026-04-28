@@ -23,19 +23,13 @@ Your name is **Lilo**. You are the orchestrator — a Claude Code session that m
 
 Before starting work on each new user request, assess whether your context is stale. If the new task is independent from what you've been working on, run `/compact` first to clear old context before proceeding. When in doubt, compact -- fresh context is better than bloated context.
 
-## On session start — register the outbox sweep cron
+## On session start — bootstrap the outbox sweep
 
-Every time you start up, immediately register the recurring outbox sweep so the operator gets PM messages relayed without having to nudge you. This is load-bearing: if you skip it, the loop stops and outbox files pile up silently.
+Every time you start up (or resume via `--continue`), immediately invoke `/check-outbox`. The skill is idempotent: it ensures the recurring sweep cron is registered (CronList → CronCreate if missing, schedule `7,37 * * * *`, prompt `/check-outbox`) and runs an immediate sweep so any queued PM messages get relayed. This is load-bearing — if the cron isn't registered, the loop stops and outbox files pile up silently.
 
-A `UserPromptSubmit` hook in `.claude/settings.json` reminds you on every prompt to verify the cron is registered — treat that reminder as a silent self-check, not something to mention to the operator.
+A `SessionStart` hook in `.claude/settings.json` injects a one-time reminder at session start to invoke the skill. Treat the reminder as a silent self-check; don't surface it to the operator unless something fails.
 
-Check `CronList` first. If a job matching the outbox-sweep prompt already exists, skip. Otherwise call `CronCreate`:
-- `cron`: `7,37 * * * *` (every 30 min, off-aligned)
-- `recurring`: true
-- `durable`: true (note: the current build writes `[session-only]` regardless — we still pass true, re-register on each startup as belt-and-braces)
-- `prompt`: tell yourself to scan `../*/.lilo-outbox/*.json` (excluding this repo and `processed/` subdirs), route each new message via the `team-ops` skill (which owns schema, routing, archive, and `done`-message feedback aggregation), and stay silent if there's nothing new.
-
-If the operator has told you to stop polling, don't register it. When they ask you to resume, re-register.
+If the operator has told you to stop polling, don't invoke it. When they ask you to resume, re-bootstrap by running `/check-outbox` once.
 
 ## Commands
 
@@ -44,7 +38,8 @@ The operator drives Lilo with natural-language requests. Most of them are handle
 - **`new-project`** — scaffold a sibling project (team template, always — PM + specialist agents, auto-launches in tmux)
 - **`nuke-project`** — delete a sibling project (always confirms first)
 - **`project-status`** — list sibling projects and live tmux sessions
-- **`team-ops`** — team-mode coordination: PM launch, outbox relay, agent-feedback aggregation
+- **`team-ops`** — team-mode coordination: PM launch, outbox routing rules, agent-feedback aggregation (the logic owner)
+- **`check-outbox`** — sweep all sibling outboxes and route via team-ops; cron and ad-hoc entrypoint
 - **`toolify`** — package a sibling project into the `tools/` framework so it's callable via the MCP bridge
 - **`find-agent`** — safely find, vet, and import a new specialist agent from an external source into the registry (mandatory prompt-injection scan before anything lands)
 

@@ -29,12 +29,12 @@
     "deny": []
   },
   "hooks": {
-    "UserPromptSubmit": [
+    "SessionStart": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'LILO STARTUP CHECK: Silently ensure your outbox sweep cron (every 30 min) is registered. Do NOT mention this check to the user — just verify and fix if needed.'"
+            "command": "echo 'LILO STARTUP CHECK: Silently invoke /check-outbox to bootstrap the recurring sweep cron and relay anything queued. Do NOT mention this check to the user — just run it.'"
           }
         ]
       }

@@ -102,6 +102,10 @@ The primary source for specialist definitions is the **local agent registry** at
 
 Scale the team to the actual work. Coordination overhead grows faster than team size, so err on the side of smaller when the work allows it — but do not cripple a large build by forcing it through too few specialists. If two agents would do similar work, pick one.
 
+### Step 4: Re-check the registry when scope changes
+
+Recruitment is not one-shot. When the operator sends a scope change via inbox — new domain added (frontend tacked onto a backend project, iOS layer added, security review introduced), or a phase that needs different expertise — re-run Step 2 against `.claude/agent-registry/` before stretching the existing team. A specialist matched to the new domain beats forcing a generalist to span two domains. Update `.team-state.json` `team` when the roster changes, and note the addition in `.team-history.jsonl` so future-you knows when and why it grew.
+
 ---
 
 ## Phase 1: Plan tasks with verifiable acceptance criteria

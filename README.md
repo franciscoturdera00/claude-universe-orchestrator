@@ -57,9 +57,13 @@ From Lilo's working directory, every project is reachable at
       agent-feedback.jsonl   # aggregated PM ratings for registry agents
       .mcp.json              # claude-universe-tools + playwright servers
       .claude/
+        agents/              # Lilo's curated subagents — including outbox-sweeper
+                             # and pipeline-syncer (orchestrator-only haiku workers
+                             # that run the cron loop in isolated context)
         settings.json        # permissions + SessionStart hook (invokes /check-outbox)
         skills/              # new-project, nuke-project, project-status, team-ops,
-                             # check-outbox, find-agent, kill, tailor-resume, toolify
+                             # sweep, pipeline, check-outbox, find-agent, kill,
+                             # tailor-resume, toolify
       templates/
         team/                # PM scaffold: agent-registry, agents/, skills/, CLAUDE.md
 
@@ -154,9 +158,9 @@ tests:
   the message arrive in Lilo's terminal within seconds, and Lilo's
   reply should arrive back on Telegram. If not, run
   `/telegram:access` to check the allowlist.
-- The outbox-sweep cron registers on every startup. If you want to
-  verify, ask Lilo directly — "is the outbox sweep registered?" — and
-  it'll check via `CronList`.
+- The `/sweep` and `/pipeline` crons register on every startup. To
+  verify, ask Lilo "are the crons registered?" and it'll check via
+  `CronList`. Should show two recurring jobs.
 
 ### Operator profile (`USER.md`)
 
@@ -177,8 +181,12 @@ descriptions under `.claude/skills/`, so you just say what you want:
 - `bootstrap` — first-run setup (USER.md, MCPs, Telegram)
 - `find an agent for <role>` — vet and import a new specialist into the
   registry (mandatory prompt-injection scan before anything lands)
-- `sweep` / `check outbox` — manual outbox sweep (the recurring cron
-  runs this every 30 min automatically)
+- `sweep` — manual outbox sweep (the `/sweep` cron runs every 10 min
+  automatically; dispatches the `outbox-sweeper` subagent)
+- `refresh the dashboard` / `/pipeline` — manual Notion dashboard
+  refresh (the `/pipeline` cron runs hourly at :17; dispatches the
+  `pipeline-syncer` subagent)
+- `check outbox` — manual umbrella that runs both at once
 - `kill the session` / `wrap up` — pre-exit pass: save lessons, commit
   routine changes, branch off anything risky
 - Anything else actionable — Lilo checks the `claude-universe-tools` MCP
@@ -188,17 +196,26 @@ descriptions under `.claude/skills/`, so you just say what you want:
   `<tool>.doctor` action for a health check — e.g. `"run job-apply.doctor"`
 
 Team projects communicate back through
-`../<project>/.lilo-outbox/*.json`. Lilo sweeps them on a recurring cron
-and relays to the operator per the routing rules in `CLAUDE.md`.
+`../<project>/.lilo-outbox/*.json`. The `outbox-sweeper` subagent picks
+them up every 10 min and Lilo relays per the routing rules in
+`CLAUDE.md`.
 
 ## Startup ritual
 
 Every new Lilo session must:
 
-1. Register the outbox sweep cron (`7,37 * * * *`) if not already
-   scheduled. `.claude/settings.json` has a `SessionStart` hook that
-   silently invokes `/check-outbox` so Lilo re-bootstraps the cron and
-   sweeps any queued PM messages on every fresh session or `--continue`.
+1. Bootstrap the two recurring crons if not already scheduled:
+   - `/sweep` on `2,12,22,32,42,52 * * * *` — dispatches the
+     `outbox-sweeper` subagent (filesystem-only, haiku) to find and
+     archive PM messages. Lilo only burns context when the subagent
+     reports something.
+   - `/pipeline` on `17 * * * *` — dispatches the `pipeline-syncer`
+     subagent (filesystem + scoped Notion MCP, haiku) to refresh the
+     dashboard. Skip-if-unchanged keeps steady-state at 0 Notion calls.
+
+   `.claude/settings.json` has a `SessionStart` hook that silently
+   invokes `/check-outbox`, which bootstraps both crons on every fresh
+   session or `--continue`.
 2. Read `CLAUDE.md` for current routing and command semantics.
 3. Stay silent unless there is something to report.
 
@@ -305,11 +322,15 @@ defense. Know what you're trusting when you use this repo:
 
 ## Feedback loop
 
-`agent-feedback.jsonl` accumulates ratings from every PM `done` report.
-Lilo periodically scans it and refines
-`templates/team/.claude/agent-registry/<agent>.md` when an agent
-accumulates repeated `poor` or thematic `adequate` ratings. This is the
-registry's self-improvement loop.
+`agent-feedback.jsonl` accumulates ratings from every PM `done` report
+(canonical schema: `poor` / `adequate` / `effective`). The
+`outbox-sweeper` subagent appends new ratings on every sweep, and runs
+`.claude/skills/check-outbox/aggregate-feedback.sh` whenever a `done`
+message lands. The aggregator flags any specialist meeting the team-ops
+thresholds — 2+ `poor` across distinct projects OR 4+ `adequate` — and
+Lilo refines `templates/team/.claude/agent-registry/<agent>.md` with
+the human judgment call on whether the adequate-notes share a coherent
+theme. This is the registry's self-improvement loop.
 
 ## Sharing / cloning this repo
 

@@ -56,6 +56,7 @@ Local, curated specialist definitions used by the project-manager agent before f
 | test | sonnet | General unit + integration tests |
 | tdd-guide | sonnet | Enforces write-tests-first methodology |
 | e2e-runner | sonnet | End-to-end flows via Agent Browser / Playwright |
+| ios-sim-driver | sonnet | iOS Simulator verification — boot/install/launch, UI assertions, screenshots |
 
 ### Documentation
 
@@ -71,6 +72,19 @@ Local, curated specialist definitions used by the project-manager agent before f
 |---|---|---|
 | a11y-architect | opus | WCAG 2.2 accessibility — Web and Native |
 | seo-specialist | sonnet | Technical SEO audits, structured data, Core Web Vitals |
+
+### Specialized
+
+| Agent | Model | Use case |
+|---|---|---|
+| lora-prompt-builder | sonnet | Flux LoRA training captions, inference prompts, dataset audits |
+| stitch-operator | sonnet | Drives the PicarX robot (Stitch) via the `picarx` MCP |
+
+### PM infrastructure
+
+| Agent | Model | Use case |
+|---|---|---|
+| team-historian | haiku | Read-only `.team-history.jsonl` queries — recall prior decisions/dispatches without bloating PM context |
 
 ## Tool scoping conventions
 

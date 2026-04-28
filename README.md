@@ -57,8 +57,9 @@ From Lilo's working directory, every project is reachable at
       agent-feedback.jsonl   # aggregated PM ratings for registry agents
       .mcp.json              # claude-universe-tools + playwright servers
       .claude/
-        settings.json        # permissions + UserPromptSubmit startup hook
-        skills/              # new-project, nuke-project, project-status, team-ops, tailor-resume, toolify
+        settings.json        # permissions + SessionStart hook (invokes /check-outbox)
+        skills/              # new-project, nuke-project, project-status, team-ops,
+                             # check-outbox, find-agent, kill, tailor-resume, toolify
       templates/
         team/                # PM scaffold: agent-registry, agents/, skills/, CLAUDE.md
 
@@ -174,6 +175,12 @@ descriptions under `.claude/skills/`, so you just say what you want:
 - `status` — list sibling projects and active tmux sessions
 - `nuke <name>` — delete a sibling project (Lilo always confirms first)
 - `bootstrap` — first-run setup (USER.md, MCPs, Telegram)
+- `find an agent for <role>` — vet and import a new specialist into the
+  registry (mandatory prompt-injection scan before anything lands)
+- `sweep` / `check outbox` — manual outbox sweep (the recurring cron
+  runs this every 30 min automatically)
+- `kill the session` / `wrap up` — pre-exit pass: save lessons, commit
+  routine changes, branch off anything risky
 - Anything else actionable — Lilo checks the `claude-universe-tools` MCP
   first and invokes a registered tool action before writing custom logic.
   To see what's currently registered: open `./tools/registry.json` or
@@ -189,9 +196,9 @@ and relays to the operator per the routing rules in `CLAUDE.md`.
 Every new Lilo session must:
 
 1. Register the outbox sweep cron (`7,37 * * * *`) if not already
-   scheduled. `.claude/settings.json` has a `UserPromptSubmit` hook that
-   reminds Lilo to re-verify this on every prompt — treat it as a silent
-   self-check.
+   scheduled. `.claude/settings.json` has a `SessionStart` hook that
+   silently invokes `/check-outbox` so Lilo re-bootstraps the cron and
+   sweeps any queued PM messages on every fresh session or `--continue`.
 2. Read `CLAUDE.md` for current routing and command semantics.
 3. Stay silent unless there is something to report.
 
@@ -238,7 +245,8 @@ The roster is a mix of:
   scope-disciplined general implementer, plus PM-facing specialists like
   `scraper`, `db-designer`, `api-integrator`, `devops`, `frontend`,
   `data-pipeline`, `docs`, `test`, `security-reviewer`, `design-critic`,
-  `document-critic`)
+  `document-critic`, `ios-sim-driver`, `team-historian`,
+  `lora-prompt-builder`, `stitch-operator`)
 - **Imported from `everything-claude-code`** (github.com/affaan-m/everything-claude-code,
   MIT-licensed) — reviewed for prompt-injection safety per agent before
   import, lightly adapted. Includes `code-architect`, `code-reviewer`,

@@ -23,8 +23,13 @@
       "Bash(grep:*)",
       "Bash(chmod:*)",
       "Bash(caffeinate:*)",
+      "Bash(/Users/franciscoturdera/PersonalProjects/claude-universe/orchestrator/.claude/skills/check-outbox/render-pipeline.sh:*)",
       "WebFetch",
-      "mcp__picarx__*"
+      "mcp__picarx__*",
+      "mcp__claude_ai_Notion__notion-update-page",
+      "mcp__claude_ai_Notion__notion-fetch",
+      "mcp__claude_ai_Notion__notion-create-pages",
+      "mcp__claude_ai_Notion__notion-search"
     ],
     "deny": []
   },

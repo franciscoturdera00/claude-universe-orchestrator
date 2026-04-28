@@ -32,6 +32,12 @@ USER.md
 # Runtime accumulator, seeded empty in fresh clones
 agent-feedback.jsonl
 
+# Pipeline dashboard snapshot — regenerated every cron tick, Notion is the source for viewing
+pipeline.md
+
+# Pipeline config holds the Notion page id (operator-specific)
+.claude/skills/check-outbox/pipeline-config.json
+
 # Operator-specific skills (kept locally, not shipped)
 .claude/skills/tailor-resume/
 

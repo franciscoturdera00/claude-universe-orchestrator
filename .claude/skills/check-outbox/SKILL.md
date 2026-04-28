@@ -42,9 +42,9 @@ Sweep `../*/.lilo-outbox/*.json` (excluding this orchestrator repo and any `proc
 
 5. For any `done` messages: run the registry-refinement aggregation per `team-ops` step 3 — append per-agent ratings to `./agent-feedback.jsonl`, then check thresholds (2+ `poor` across projects OR 4+ `adequate` with similar notes) and refine the affected `templates/team/.claude/agent-registry/<agent>.md` if needed. Tell the operator what changed.
 
-## Step 2 — Refresh pipeline dashboard
+## Step 2 — Refresh pipeline dashboard (local only for now)
 
-Always run this, even when the sweep was empty. Two sinks: a local `orchestrator/pipeline.md` (canonical, gitignored) and a Notion mirror.
+Always run this, even when the sweep was empty.
 
 1. Render the local file:
    ```bash
@@ -52,19 +52,9 @@ Always run this, even when the sweep was empty. Two sinks: a local `orchestrator
    ```
    The script walks every sibling project's `.team-state.json`, checks live tmux sessions, counts outbox traffic, and writes `orchestrator/pipeline.md`. Exits 0 with the output path on success.
 
-2. Mirror to Notion. Read the page id from `.claude/skills/check-outbox/pipeline-config.json` (`notion_page_id`). Read the rendered `pipeline.md` content and **strip the leading `# Lilo Pipeline\n\n` H1** — the Notion page title already shows it; sending it again would duplicate. Then call:
-   ```
-   mcp__claude_ai_Notion__notion-update-page
-     page_id: <notion_page_id from config>
-     command: "replace_content"
-     new_str: <pipeline.md content WITHOUT the H1 heading>
-     allow_deleting_content: true
-     properties: {}
-     content_updates: []
-   ```
-   Use `replace_content` (not `update_content`) so the page never grows unboundedly. `allow_deleting_content: true` is required because each refresh deletes the prior block tree.
+2. **Notion mirror is OFF for now.** The Notion dashboard at `pipeline-config.json::notion_page_id` is now backed by a Projects database (data source `0eb25fb5-b983-4c46-a314-d63c3f1ee5fa`), not a markdown blob. The previous "replace_content with pipeline.md" step would WIPE the inline database embed on the parent page — do not run it. The upsert-by-row implementation is pending operator sign-off on the database layout.
 
-3. If the Notion call fails (auth, network, page deleted), don't retry the loop. Log the error inline (terminal) or as a low-priority Telegram ping, and continue. The local `pipeline.md` is still authoritative.
+   When wired, the loop will: for each project, search the database by Name; create or update the row's properties (Status, Phase, Updated, Team, Open tasks, Outbox pending, Outbox archived, PM live, Summary, Top tasks); and replace the row's body content with the rich detail block. Until that lands, the local `pipeline.md` is the only refresh sink.
 
 ## Output
 

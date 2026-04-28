@@ -100,13 +100,52 @@ The `tools/` framework ships inside this repo (`./tools/`). The MCP bridge reads
 
 ---
 
-## Step 5 — Smoke test
+## Step 5 — Pipeline dashboard (optional, recommended)
+
+A live cross-project Notion dashboard backed by the cron tick. Refreshes every 30 minutes — same `7,37 * * * *` schedule as the outbox sweep. Skip if the operator doesn't use Notion.
+
+Prereq: the Notion MCP must be connected at the account level (Step 2). Verify by checking `.mcp.json` or `claude mcp list` shows a Notion entry — if not, point the operator at the install flow and skip.
+
+1. **Copy the config template:**
+   ```bash
+   [ -f .claude/skills/check-outbox/pipeline-config.json ] || cp .claude/skills/check-outbox/pipeline-config.example.json .claude/skills/check-outbox/pipeline-config.json
+   ```
+
+2. **Create the parent page.** Ask the operator: "Want me to create a top-level Notion page called 'Lilo Pipeline' for the dashboard, or drop it under an existing page?" Use `mcp__claude_ai_Notion__notion-create-pages`:
+   - For a top-level page: omit `parent` (creates as workspace-level private page).
+   - Under an existing page: pass `parent: {type: "page_id", page_id: <ID>}`.
+   - `properties: {"title": "Lilo Pipeline"}`, brief placeholder `content`.
+   Capture the returned page id.
+
+3. **Create the Projects database** under the parent page via `mcp__claude_ai_Notion__notion-create-database`:
+   - `parent: {type: "page_id", page_id: <id from step 2>}`
+   - `title: "Projects"`
+   - `schema`: `CREATE TABLE ("Name" TITLE, "Status" SELECT('active':blue, 'paused':yellow, 'blocked':red, 'done':green, 'solo':gray), "Phase" RICH_TEXT, "Updated" DATE, "Team" NUMBER, "Open tasks" NUMBER, "Outbox pending" NUMBER, "Outbox archived" NUMBER, "PM live" CHECKBOX, "Summary" RICH_TEXT, "Top tasks" RICH_TEXT)`
+   Capture the returned database url AND the data-source UUID (from the `<data-source url="collection://...">` tag in the response).
+
+4. **Add a "Live & recent" view** — table sorted by `PM live DESC, Updated DESC`. Use `notion-create-view` with `database_id` from step 3, `type: "table"`, and `configure: 'SORT BY "PM live" DESC, "Updated" DESC\nSHOW "Name", "PM live", "Status", "Updated", "Phase", "Open tasks", "Outbox pending", "Team", "Summary"'`.
+
+5. **Wire the parent page** to embed the database inline — `notion-update-page` with `command: "replace_content"` and a callout + `<database url="<db_url>" inline="true">Projects</database>` block.
+
+6. **Fill in pipeline-config.json** with the captured ids:
+   - `notion_page_id`: the parent page id
+   - `notion_page_url`: the parent page url
+   - `notion_database_url`: the database url
+   - `data_source_id`: the data source uuid (NOT the database uuid)
+
+7. **Verify.** Run `/check-outbox` once. The skill renders `pipeline.md` + `pipeline.json` locally, then upserts each sibling project into the Projects database (creating rows on first run, caching their ids back into `pipeline-config.json`), and regenerates the parent page's Snapshot / What's next / Recent activity sections.
+
+The cron tick takes over from there.
+
+---
+
+## Step 6 — Smoke test
 
 Suggest running `new project: hello` to scaffold a throwaway project and verify the pipeline works end-to-end. Offer to nuke it afterwards.
 
 ---
 
-## Step 6 — Wrap up
+## Step 7 — Wrap up
 
 - Recap what was set up, what was skipped, and any next steps the operator still owes (e.g. install Supabase MCP in account settings).
 - Remind them that `USER.md` is gitignored — safe to commit the repo without leaking their profile.

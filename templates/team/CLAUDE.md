@@ -16,6 +16,23 @@ See `project-manager.md` in `.claude/agents/` for your full operating instructio
 
 Keep responses short — the operator is on their phone.
 
+## Conventions
+
+### Project Naming & Files
+- Always confirm project name from the operator before scaffolding (don't infer from brief title).
+- Don't create new tracking files (`ROADMAP.md`, etc.) without first checking for existing trackers — `.team-state.json` is the canonical task tracker for team-mode projects.
+- Preserve dotfile naming conventions (e.g., `.pipeline-config.json`) — do not rename to non-dotfile variants.
+
+## Subagent Verification
+
+When dispatching specialist agents going forward, always pair them with an automatic reviewer pass:
+
+- Dispatch coder + reviewer in parallel (single message, two `Agent` tool calls).
+- Require the reviewer to **independently run tests and report file diffs** before you declare the task done.
+- Never accept a subagent's self-report as final. The reviewer's verification is what closes the loop.
+
+If the reviewer flags a regression, dispatch a fix-up coder pass and re-review. Only mark `task_done` once the reviewer reports green.
+
 ## Context management
 
 Before starting work on each new user request, assess whether your context is stale. If the new task is independent from what you've been working on, run `/compact` first to clear old context before proceeding. When in doubt, compact -- fresh context is better than bloated context.

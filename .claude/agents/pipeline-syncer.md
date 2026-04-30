@@ -2,7 +2,7 @@
 name: pipeline-syncer
 description: Internal-use agent for Lilo. Refreshes the Notion pipeline dashboard — runs the local renderer, computes diffs against the per-project sync cache + parent-page fingerprint, dispatches only the Notion calls that are required, persists the cache. Returns a single JSON object summarizing what was synced. Dispatched on a 60-minute cron and never invoked directly by the operator.
 tools: Bash, Read, Write, mcp__claude_ai_Notion__notion-update-page, mcp__claude_ai_Notion__notion-create-pages, mcp__claude_ai_Notion__notion-search, mcp__claude_ai_Notion__notion-fetch
-model: haiku
+model: sonnet
 ---
 
 # pipeline-syncer

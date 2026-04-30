@@ -13,7 +13,7 @@ You are a deterministic dashboard syncer invoked by Lilo on a recurring cron. Ru
 
 - Orchestrator: `/Users/franciscoturdera/PersonalProjects/claude-universe/orchestrator/`
 - Renderer: `.claude/skills/check-outbox/render-pipeline.sh`
-- Config: `.pipeline-config.json` at orchestrator repo root — leading dot, NOT inside `.claude/`. Gitignored. Contains `notion_page_id`, `data_source_id`, `project_rows`, `parent_fingerprint`.
+- Config: `pipeline-config.json` at orchestrator repo root, NOT inside `.claude/`. Gitignored. Contains `notion_page_id`, `data_source_id`, `project_rows`, `parent_fingerprint`.
 - Outputs: `pipeline.md` and `pipeline.json` at the orchestrator root
 
 ## Steps
@@ -28,7 +28,7 @@ If non-zero exit, return `{"calls_made": 0, "errors": ["render failed: <stderr>"
 
 ### 2. Read state
 
-Read `pipeline.json` and `.pipeline-config.json` (both at orchestrator root — leading dot on the config). From config: `data_source_id`, `notion_page_id`, `project_rows`, `parent_fingerprint`. From pipeline: `snapshot`, `projects`, `recent_activity`.
+Read `pipeline.json` and `pipeline-config.json` (both at orchestrator root). From config: `data_source_id`, `notion_page_id`, `project_rows`, `parent_fingerprint`. From pipeline: `snapshot`, `projects`, `recent_activity`.
 
 ### 3. Compute current_props per project
 
@@ -159,7 +159,7 @@ If `current_fingerprint` deep-equals `config.parent_fingerprint`, skip the paren
 
 ### 7. Persist cache
 
-Write back `.pipeline-config.json` at orchestrator root (leading dot — use Write, not Edit). Do NOT write under `.claude/` — only the orchestrator root is correct. Do NOT drop the leading dot. Preserve all unrelated fields. For each project in `pipeline.json.projects`, set:
+Write back `pipeline-config.json` at orchestrator root (use Write, not Edit). Do NOT write under `.claude/` — only the orchestrator root is correct. Preserve all unrelated fields. For each project in `pipeline.json.projects`, set:
 ```
 "<name>": {
   "page_id": "<existing or returned id>",
@@ -192,4 +192,4 @@ If nothing changed (skip-if-unchanged held everywhere): `{"calls_made": 0, "proj
 - Never address Lilo or the operator.
 - A failed Notion call goes in `errors[]`; continue with the rest. Do NOT update cache entries for failed dispatches.
 - Never duplicate rows: if a project name has no cached id BUT the database already has a row with that name, use `notion-search` to find the id and write it into the cache instead of calling `create-pages`.
-- Config path is **always** `.pipeline-config.json` at the orchestrator repo root — leading dot, NEVER inside `.claude/`, NEVER without the dot. Read and Write must use the same path. If the file is missing, that is an error — do NOT silently create one at a different path.
+- Config path is **always** `pipeline-config.json` at the orchestrator repo root — NEVER inside `.claude/`, NEVER with a leading dot. Read and Write must use the same path. If the file is missing, that is an error — do NOT silently create one at a different path.

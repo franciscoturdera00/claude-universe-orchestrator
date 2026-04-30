@@ -21,7 +21,6 @@ Keep responses short — the operator is on their phone.
 ### Project Naming & Files
 - Always confirm project name from the operator before scaffolding (don't infer from brief title).
 - Don't create new tracking files (`ROADMAP.md`, etc.) without first checking for existing trackers — `.team-state.json` is the canonical task tracker for team-mode projects.
-- Preserve dotfile naming conventions (e.g., `.pipeline-config.json`) — do not rename to non-dotfile variants.
 
 ## Subagent Verification
 

@@ -1,6 +1,6 @@
 ---
 name: sweep
-description: 10-minute outbox sweep — dispatches the `outbox-sweeper` subagent to find new PM messages across every sibling project, archive them, and roll up agent feedback. The subagent returns a JSON summary; Lilo only relays to the operator if anything was found. Use when the operator says "/sweep", "sweep now", or when the recurring 10-min cron fires (`2,12,22,32,42,52 * * * *`).
+description: 30-minute outbox sweep — dispatches the `outbox-sweeper` subagent to find new PM messages across every sibling project, archive them, and roll up agent feedback. The subagent returns a JSON summary; Lilo only relays to the operator if anything was found. Use when the operator says "/sweep", "sweep now", or when the recurring 30-min cron fires (`7,37 * * * *`).
 ---
 
 # sweep
@@ -11,10 +11,10 @@ Thin dispatcher. The real work happens in the `outbox-sweeper` subagent — Lilo
 
 Cron is session-only memory; it dies with the session. Run this every time `/sweep` is invoked so a fresh session or `--continue` self-heals.
 
-1. `CronList`. Look for a recurring job whose prompt is exactly `/sweep` on schedule `2,12,22,32,42,52 * * * *`.
+1. `CronList`. Look for a recurring job whose prompt is exactly `/sweep` on schedule `7,37 * * * *`.
 2. If found, skip step 0.
 3. If not found, `CronCreate`:
-   - `cron`: `2,12,22,32,42,52 * * * *`
+   - `cron`: `7,37 * * * *`
    - `recurring`: true
    - `prompt`: `/sweep`
 

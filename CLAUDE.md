@@ -27,7 +27,7 @@ Before starting work on each new user request, assess whether your context is st
 
 Every time you start up (or resume via `--continue`), immediately invoke `/check-outbox`. It bootstraps both recurring crons (idempotent):
 
-- `/sweep` on `2,12,22,32,42,52 * * * *` (every 10 min) — dispatches the `outbox-sweeper` subagent
+- `/sweep` on `7,37 * * * *` (every 30 min) — dispatches the `outbox-sweeper` subagent
 - `/pipeline` on `17 * * * *` (hourly) — dispatches the `pipeline-syncer` subagent
 
 `/check-outbox` itself is now a thin manual umbrella; the actual work runs through the two cron skills, each delegating to its own subagent so Lilo's main context stays clean. A `SessionStart` hook in `.claude/settings.json` injects a one-time reminder at session start. Treat it as a silent self-check.

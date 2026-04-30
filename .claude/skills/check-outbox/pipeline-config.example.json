@@ -1,5 +1,5 @@
 {
-  "_comment": "Operator-specific pipeline dashboard config. Copy to pipeline-config.json (gitignored), then populate notion_page_id / notion_database_url / data_source_id with the IDs returned when you create the dashboard via Notion MCP. project_rows is the per-project sync cache: leave empty on first run; check-outbox writes {page_id, props, body_updated_at} entries here so subsequent ticks can skip unchanged rows. parent_fingerprint caches the parent-page inputs for the same skip-if-unchanged purpose.",
+  "_comment": "Operator-specific pipeline dashboard config. Copy to .pipeline-config.json at the orchestrator repo root (gitignored), then populate notion_page_id / notion_database_url / data_source_id with the IDs returned when you create the dashboard via Notion MCP. project_rows is the per-project sync cache: leave empty on first run; the pipeline-syncer subagent writes {page_id, props, body_updated_at} entries here so subsequent ticks can skip unchanged rows. parent_fingerprint caches the parent-page inputs for the same skip-if-unchanged purpose.",
   "notion_page_id": "REPLACE_WITH_LILO_PIPELINE_PAGE_UUID",
   "notion_page_url": "https://www.notion.so/REPLACE_WITH_PAGE_URL",
   "notion_database_url": "https://www.notion.so/REPLACE_WITH_DATABASE_URL",

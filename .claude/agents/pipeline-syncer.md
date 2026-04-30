@@ -13,7 +13,7 @@ You are a deterministic dashboard syncer invoked by Lilo on a recurring cron. Ru
 
 - Orchestrator: `/Users/franciscoturdera/PersonalProjects/claude-universe/orchestrator/`
 - Renderer: `.claude/skills/check-outbox/render-pipeline.sh`
-- Config: `.claude/skills/check-outbox/pipeline-config.json` (gitignored, contains `notion_page_id`, `data_source_id`, `project_rows`, `parent_fingerprint`)
+- Config: `.pipeline-config.json` (gitignored, contains `notion_page_id`, `data_source_id`, `project_rows`, `parent_fingerprint`)
 - Outputs: `pipeline.md` and `pipeline.json` at the orchestrator root
 
 ## Steps
@@ -28,7 +28,7 @@ If non-zero exit, return `{"calls_made": 0, "errors": ["render failed: <stderr>"
 
 ### 2. Read state
 
-Read `pipeline.json` and `pipeline-config.json`. From config: `data_source_id`, `notion_page_id`, `project_rows`, `parent_fingerprint`. From pipeline: `snapshot`, `projects`, `recent_activity`.
+Read `pipeline.json` and `.pipeline-config.json`. From config: `data_source_id`, `notion_page_id`, `project_rows`, `parent_fingerprint`. From pipeline: `snapshot`, `projects`, `recent_activity`.
 
 ### 3. Compute current_props per project
 
@@ -159,7 +159,7 @@ If `current_fingerprint` deep-equals `config.parent_fingerprint`, skip the paren
 
 ### 7. Persist cache
 
-Write back `pipeline-config.json` (use Write, not Edit). Preserve all unrelated fields. For each project in `pipeline.json.projects`, set:
+Write back `.pipeline-config.json` (use Write, not Edit). Preserve all unrelated fields. For each project in `pipeline.json.projects`, set:
 ```
 "<name>": {
   "page_id": "<existing or returned id>",

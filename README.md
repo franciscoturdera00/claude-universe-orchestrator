@@ -205,7 +205,7 @@ them up every 10 min and Lilo relays per the routing rules in
 Every new Lilo session must:
 
 1. Bootstrap the two recurring crons if not already scheduled:
-   - `/sweep` on `2,12,22,32,42,52 * * * *` — dispatches the
+   - `/sweep` on `7,37 * * * *` — dispatches the
      `outbox-sweeper` subagent (filesystem-only, haiku) to find and
      archive PM messages. Lilo only burns context when the subagent
      reports something.

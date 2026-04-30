@@ -37,7 +37,7 @@ pipeline.md
 pipeline.json
 
 # Pipeline config holds the Notion page id (operator-specific)
-.claude/skills/check-outbox/pipeline-config.json
+.pipeline-config.json
 
 # Operator-specific skills (kept locally, not shipped)
 .claude/skills/tailor-resume/

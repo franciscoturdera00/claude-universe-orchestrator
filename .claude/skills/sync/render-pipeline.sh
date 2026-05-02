@@ -7,7 +7,7 @@
 set -euo pipefail
 
 # Resolve paths relative to the script's own location so the script works
-# regardless of caller cwd. Layout: orchestrator/.claude/skills/check-outbox/
+# regardless of caller cwd. Layout: orchestrator/.claude/skills/sync/
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ORCHESTRATOR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 ROOT="$(cd "$ORCHESTRATOR/.." && pwd)"

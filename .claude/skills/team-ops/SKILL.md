@@ -18,13 +18,33 @@ Lilo's playbook for projects. Covers the three coordination duties that are core
 Runs after the `new-project` skill has already copied `templates/team/` into `../<name>/` and substituted `{{PROJECT_NAME}}`. Do these steps in order:
 
 1. Ensure the scaffold included `.claude/agents/` and `CLAUDE.md`. The `cp -R templates/team/. ../<name>/` line in the scaffold recipe handles this; verify with `ls -la ../<name>/.claude/`. Note: agent specs live in the orchestrator's registry and are symlinked in step 3 — no per-project `agent-registry/` copy.
-2. Create the comms dirs in the project:
+2. Create the comms dirs, seed the team-state files, and stamp the profile in the project root. Skip the seeds on resume — if `.team-state.json` already exists, leave it (and `.team-history.jsonl`, and `.team-profile`) alone:
    ```bash
    mkdir -p ../<name>/.lilo-inbox ../<name>/.lilo-outbox
+   if [ ! -f ../<name>/.team-state.json ]; then
+     NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+     jq -n --arg ts "$NOW" '{
+       phase: "recruiting",
+       status: "active",
+       updated_at: $ts,
+       completed_at: null,
+       summary: "",
+       team: [],
+       active_tasks: [],
+       open_decisions: [],
+       context: ""
+     }' > ../<name>/.team-state.json
+     : > ../<name>/.team-history.jsonl
+   fi
+   [ -f ../<name>/.team-profile ] || echo "<profile>" > ../<name>/.team-profile
    ```
-3. **Symlink `.claude/agents/` to the orchestrator's registry — fresh scaffolds only.** Claude Code only indexes subagents that exist in `.claude/agents/` at session start. Use symlinks (not copies) so registry edits propagate to every project on next session start, with no per-project drift. **Skip this step on resume:** if `../<name>/.claude/agents/` already has files, do nothing — agents/manual edits there are intentional.
+   All three files live at repo root (not under `.claude/`). `.team-state.json` is gitignored by the template; `.team-history.jsonl` and `.team-profile` are intentionally tracked. `.team-profile` records which overlay (`mvp` or `work`) the project was scaffolded with so `/pm start` can re-launch with the right flags.
+3. **Symlink `.claude/agents/` to the orchestrator's registry — fresh scaffolds only.** Claude Code only indexes subagents that exist in `.claude/agents/` at session start. Use symlinks (not copies) so registry edits propagate to every project on next session start, with no per-project drift. **Skip this step on resume:** if `../<name>/.claude/agents/` already has real files (anything other than the template's `.gitkeep`), do nothing — agents/manual edits there are intentional.
    ```bash
-   # Fresh scaffold only — guard:
+   # The template ships a .gitkeep so the empty dir tracks under git.
+   # Drop it on fresh scaffold; ls -A will then be empty unless someone
+   # added real content (resume case), in which case skip the loop.
+   rm -f ../<name>/.claude/agents/.gitkeep
    if [ -z "$(ls -A ../<name>/.claude/agents 2>/dev/null)" ]; then
      for f in templates/team/.claude/agent-registry/*.md; do
        base=$(basename "$f")
@@ -35,11 +55,16 @@ Runs after the `new-project` skill has already copied `templates/team/` into `..
    ```
    The relative path resolves because every project is a sibling of `orchestrator/`. Adding a new spec to the registry later: re-run the loop in any project that should pick it up, or symlink the one new file manually. Customizing one agent for a single project: `rm` the symlink and replace it with a real file.
 4. Write the initial task to `../<name>/.lilo-inbox/<timestamp>-initial-task.md`. Content is whatever the operator described as the project goal.
-5. Launch the PM in a detached tmux session:
+5. Launch the PM in a detached tmux session. Read the CLI flags from the profile's overlay (`templates/overlays/<profile>/launch.flags`) so they live in one place. `<profile>` is whatever `new-project` resolved (default `mvp`):
    ```bash
-   tmux new -d -s <name> "cd ../<name> && claude --dangerously-skip-permissions --chrome --strict-mcp-config --mcp-config .mcp.json"
+   FLAGS=$(cat templates/overlays/<profile>/launch.flags)
+   tmux new -d -s <name> "cd ../<name> && claude $FLAGS"
    ```
-   `--strict-mcp-config` blocks all account-level connectors (Notion, Gmail, Calendar, Figma, Supabase, etc.) so the PM context stays slim. `--chrome` is a separate flag and is unaffected. Stdio MCPs are loaded only from the project's `.mcp.json` (currently `playwright` + `ios-simulator`). If a specific project asks for Notion/Gmail/etc., the operator chooses whether to drop `--strict-mcp-config` for that one launch (which inherits the entire connector set, all-or-nothing).
+   Profile defaults today:
+   - `mvp` → `--dangerously-skip-permissions --chrome --strict-mcp-config --mcp-config .mcp.json` — blocks account-level connectors so PM context stays slim; stdio MCPs come only from the project's `.mcp.json` (`playwright` + `ios-simulator`).
+   - `work` → `--permission-mode auto --chrome --mcp-config .mcp.json` — drops `--strict-mcp-config` so work connectors (HubSpot/GitHub/ClickUp/Figma) load; the project's `settings.json` `permissions.deny` list blocks personal connectors (Telegram/Notion/Gmail/etc.) belt-and-suspenders. `auto` lets Claude self-vet permission prompts, blocking risky actions while auto-approving safe ones.
+
+   `--chrome` is independent of MCP scoping and is unaffected by either profile.
 6. Kick off the PM with the check-inbox nudge. **Send the text and the Enter as two separate `tmux send-keys` calls, with a brief sleep between.** A single call with inline `Enter` (or `C-m`) often queues the prompt into the input buffer without submitting it — the operator then sees an unsent prompt and has to nudge Lilo to press send. Two calls is reliable:
    ```bash
    tmux send-keys -t <name> "Run /check-inbox to read your first task, then start working. Run /check-inbox again at every natural breakpoint (end of phase, after long operations, whenever I nudge you) — new instructions from the operator land there asynchronously. Write status updates to .lilo-outbox/ as you go."
@@ -116,7 +141,7 @@ PMs writing `agent_report` entries MUST use these strings. Numbers, "good"/"exce
 
 ### Refinement thresholds
 
-`/check-outbox` step 1.5 invokes `.claude/skills/check-outbox/aggregate-feedback.sh` automatically on every tick (cron or manual). It reports any agent meeting either threshold:
+`/sync` step 1.5 invokes `.claude/skills/sync/aggregate-feedback.sh` automatically on every tick (cron or manual). It reports any agent meeting either threshold:
 
 - **2+ `poor` ratings** across different projects, OR
 - **4+ `adequate` ratings** (theme inspection happens at the LLM layer — the script just flags candidates)

@@ -23,16 +23,13 @@ Your name is **Lilo**. You are the orchestrator — a Claude Code session that m
 
 Before starting work on each new user request, assess whether your context is stale. If the new task is independent from what you've been working on, run `/compact` first to clear old context before proceeding. When in doubt, compact -- fresh context is better than bloated context.
 
-## On session start — bootstrap the cron loop
+## On session start — silent sync if PMs exist
 
-Every time you start up (or resume via `--continue`), immediately invoke `/check-outbox`. It bootstraps both recurring crons (idempotent):
+The recurring sweep/pipeline crons are **off by default**. The operator opts in with `/poll on` and out with `/poll off`. Lilo never auto-registers the cron.
 
-- `/sweep` on `7,37 * * * *` (every 30 min) — dispatches the `outbox-sweeper` subagent
-- `/pipeline` on `17 * * * *` (hourly) — dispatches the `pipeline-syncer` subagent
+A `SessionStart` hook in `.claude/settings.json` checks whether any sibling PM project exists; if so, it tells Lilo to silently invoke `/sync` once at startup, so anything queued while Lilo was offline gets relayed and the dashboard refreshes. If there are no sibling projects, the hook stays silent. Treat the reminder as a silent self-check — do not narrate it to the operator.
 
-`/check-outbox` itself is now a thin manual umbrella; the actual work runs through the two cron skills, each delegating to its own subagent so Lilo's main context stays clean. A `SessionStart` hook in `.claude/settings.json` injects a one-time reminder at session start. Treat it as a silent self-check.
-
-If the operator has told you to stop polling, don't invoke it. When they ask you to resume, re-bootstrap by running `/check-outbox` once.
+When `/sync` runs from the hook, it just runs one sweep + one forced pipeline. It does not touch crons. If the operator wants the recurring loop, they say `/poll on`.
 
 ## Commands
 
@@ -40,11 +37,12 @@ The operator drives Lilo with natural-language requests. Most of them are handle
 
 - **`new-project`** — scaffold a sibling project (team template, always — PM + specialist agents, auto-launches in tmux)
 - **`nuke-project`** — delete a sibling project (always confirms first)
-- **`project-status`** — list sibling projects and live tmux sessions
+- **`pm`** — list sibling projects and live tmux sessions (no args), or operate on a specific PM (`pm start <name>`, `pm stop <name>`)
 - **`team-ops`** — team-mode coordination: PM launch, outbox routing rules, agent-feedback aggregation (the logic owner)
-- **`sweep`** — 10-min outbox sweep, fired by cron; dispatches the `outbox-sweeper` subagent and only surfaces messages it actually finds
-- **`pipeline`** — hourly Notion dashboard refresh, fired by cron; dispatches the `pipeline-syncer` subagent and only surfaces errors
-- **`check-outbox`** — manual umbrella: bootstraps both crons + runs `/sweep` and `/pipeline` immediately
+- **`poll`** — toggle the recurring sync cron: `/poll on` registers `/sync` at `7,37 * * * *`, `/poll off` deletes it. Off by default; operator opts in.
+- **`sweep`** — pure outbox sweep; dispatches the `outbox-sweeper` subagent, only surfaces messages it actually finds. No dashboard refresh.
+- **`pipeline`** — Notion dashboard refresh; dispatches the `pipeline-syncer` subagent and only surfaces errors. Invoked directly by the operator, or chained from `/sync` when the sweep returned new messages.
+- **`sync`** — umbrella: runs `/sweep`, then runs `/pipeline` only if the sweeper found new messages. Stays cheap when nothing's queued. This is what the `/poll`-registered cron fires and what the SessionStart hook fires on session start.
 - **`toolify`** — package a sibling project into the `tools/` framework so it's callable via the MCP bridge
 - **`find-agent`** — safely find, vet, and import a new specialist agent from an external source into the registry (mandatory prompt-injection scan before anything lands)
 

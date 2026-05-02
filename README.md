@@ -60,10 +60,10 @@ From Lilo's working directory, every project is reachable at
         agents/              # Lilo's curated subagents — including outbox-sweeper
                              # and pipeline-syncer (orchestrator-only haiku workers
                              # that run the cron loop in isolated context)
-        settings.json        # permissions + SessionStart hook (invokes /check-outbox)
-        skills/              # new-project, nuke-project, project-status, team-ops,
-                             # sweep, pipeline, check-outbox, find-agent, kill,
-                             # tailor-resume, toolify
+        settings.json        # permissions + SessionStart hook (invokes /sync)
+        skills/              # new-project, nuke-project, pm, team-ops,
+                             # sweep, pipeline, sync, poll, find-agent,
+                             # kill, tailor-resume, toolify
       templates/
         team/                # PM scaffold: agent-registry, agents/, skills/, CLAUDE.md
 
@@ -202,22 +202,24 @@ them up every 10 min and Lilo relays per the routing rules in
 
 ## Startup ritual
 
-Every new Lilo session must:
+Every new Lilo session:
 
-1. Bootstrap the two recurring crons if not already scheduled:
-   - `/sweep` on `7,37 * * * *` — dispatches the
-     `outbox-sweeper` subagent (filesystem-only, haiku) to find and
-     archive PM messages. Lilo only burns context when the subagent
-     reports something.
-   - `/pipeline` on `17 * * * *` — dispatches the `pipeline-syncer`
-     subagent (filesystem + scoped Notion MCP, haiku) to refresh the
-     dashboard. Skip-if-unchanged keeps steady-state at 0 Notion calls.
-
-   `.claude/settings.json` has a `SessionStart` hook that silently
-   invokes `/check-outbox`, which bootstraps both crons on every fresh
-   session or `--continue`.
-2. Read `CLAUDE.md` for current routing and command semantics.
-3. Stay silent unless there is something to report.
+1. Recurring polling is **off by default**. The operator opts in with
+   `/poll on` — registers a single recurring `/sync` cron at
+   `7,37 * * * *`. Each tick runs `/sync`: sweep first via the
+   `outbox-sweeper` subagent (filesystem-only, haiku), and conditionally
+   refresh the dashboard via the `pipeline-syncer` subagent
+   (filesystem + scoped Notion MCP, haiku) only if the sweep returned
+   new messages. `/poll off` deletes the cron.
+2. `.claude/settings.json` has a `SessionStart` hook that runs a small
+   shell gate (`.claude/skills/sync/sessionstart-hook.sh`). If at least
+   one sibling PM project exists, the hook tells Lilo to silently
+   invoke `/sync` once on the first turn — surfacing anything queued
+   while Lilo was offline and forcing a dashboard refresh. Crons are
+   never auto-registered. If no sibling projects exist, the hook stays
+   silent.
+3. Read `CLAUDE.md` for current routing and command semantics.
+4. Stay silent unless there is something to report.
 
 ## Tool registry
 
@@ -325,7 +327,7 @@ defense. Know what you're trusting when you use this repo:
 `agent-feedback.jsonl` accumulates ratings from every PM `done` report
 (canonical schema: `poor` / `adequate` / `effective`). The
 `outbox-sweeper` subagent appends new ratings on every sweep, and runs
-`.claude/skills/check-outbox/aggregate-feedback.sh` whenever a `done`
+`.claude/skills/sync/aggregate-feedback.sh` whenever a `done`
 message lands. The aggregator flags any specialist meeting the team-ops
 thresholds — 2+ `poor` across distinct projects OR 4+ `adequate` — and
 Lilo refines `templates/team/.claude/agent-registry/<agent>.md` with

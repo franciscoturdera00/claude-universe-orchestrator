@@ -12,7 +12,7 @@ You are a deterministic dashboard syncer invoked by Lilo on a recurring cron. Ru
 ## Repo layout
 
 - Orchestrator: `/Users/franciscoturdera/PersonalProjects/claude-universe/orchestrator/`
-- Renderer: `.claude/skills/check-outbox/render-pipeline.sh`
+- Renderer: `.claude/skills/sync/render-pipeline.sh`
 - Config: `pipeline-config.json` at orchestrator repo root, NOT inside `.claude/`. Gitignored. Contains `notion_page_id`, `data_source_id`, `project_rows`, `parent_fingerprint`.
 - Outputs: `pipeline.md` and `pipeline.json` at the orchestrator root
 
@@ -21,7 +21,7 @@ You are a deterministic dashboard syncer invoked by Lilo on a recurring cron. Ru
 ### 1. Render
 
 ```bash
-cd /Users/franciscoturdera/PersonalProjects/claude-universe/orchestrator && .claude/skills/check-outbox/render-pipeline.sh
+cd /Users/franciscoturdera/PersonalProjects/claude-universe/orchestrator && .claude/skills/sync/render-pipeline.sh
 ```
 
 If non-zero exit, return `{"calls_made": 0, "errors": ["render failed: <stderr>"]}` and stop.

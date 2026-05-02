@@ -108,7 +108,7 @@ Prereq: the Notion MCP must be connected at the account level (Step 2). Verify b
 
 1. **Copy the config template:**
    ```bash
-   [ -f pipeline-config.json ] || cp .claude/skills/check-outbox/pipeline-config.example.json pipeline-config.json
+   [ -f pipeline-config.json ] || cp .claude/skills/sync/pipeline-config.example.json pipeline-config.json
    ```
 
 2. **Create the parent page.** Ask the operator: "Want me to create a top-level Notion page called 'Lilo Pipeline' for the dashboard, or drop it under an existing page?" Use `mcp__claude_ai_Notion__notion-create-pages`:
@@ -133,7 +133,7 @@ Prereq: the Notion MCP must be connected at the account level (Step 2). Verify b
    - `notion_database_url`: the database url
    - `data_source_id`: the data source uuid (NOT the database uuid)
 
-7. **Verify.** Run `/check-outbox` once. The skill renders `pipeline.md` + `pipeline.json` locally, then upserts each sibling project into the Projects database (creating rows on first run, caching their ids back into `pipeline-config.json` at the orchestrator root), and regenerates the parent page's Snapshot / What's next / Recent activity sections.
+7. **Verify.** Run `/sync` once. The skill renders `pipeline.md` + `pipeline.json` locally, then upserts each sibling project into the Projects database (creating rows on first run, caching their ids back into `pipeline-config.json` at the orchestrator root), and regenerates the parent page's Snapshot / What's next / Recent activity sections.
 
 The cron tick takes over from there.
 

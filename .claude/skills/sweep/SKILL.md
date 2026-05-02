@@ -1,32 +1,22 @@
 ---
 name: sweep
-description: 30-minute outbox sweep — dispatches the `outbox-sweeper` subagent to find new PM messages across every sibling project, archive them, and roll up agent feedback. The subagent returns a JSON summary; Lilo only relays to the operator if anything was found. Use when the operator says "/sweep", "sweep now", or when the recurring 30-min cron fires (`7,37 * * * *`).
+description: Outbox sweep — dispatches the `outbox-sweeper` subagent to find new PM messages across every sibling project, archive them, and roll up agent feedback. The subagent returns a JSON summary; Lilo only relays to the operator if anything was found. Use when the operator says "/sweep" or "sweep now".
 ---
 
 # sweep
 
 Thin dispatcher. The real work happens in the `outbox-sweeper` subagent — Lilo only spends context when the sweep finds something.
 
-## Step 0 — Ensure the sweep cron is registered (idempotent)
+## Step 1 — Dispatch the sweeper in the background
 
-Cron is session-only memory; it dies with the session. Run this every time `/sweep` is invoked so a fresh session or `--continue` self-heals.
-
-1. `CronList`. Look for a recurring job whose prompt is exactly `/sweep` on schedule `7,37 * * * *`.
-2. If found, skip step 0.
-3. If not found, `CronCreate`:
-   - `cron`: `7,37 * * * *`
-   - `recurring`: true
-   - `prompt`: `/sweep`
-
-Stay silent unless something failed.
-
-## Step 1 — Dispatch the subagent
+Always dispatch with `run_in_background: true` so the cron tick (or manual fire) does not block Lilo's main loop. You will be notified when the subagent completes, and you handle Step 2 then.
 
 ```
 Agent({
   subagent_type: "outbox-sweeper",
-  description: "10-min outbox sweep",
-  prompt: "Sweep all sibling outboxes. Return the JSON summary."
+  description: "Outbox sweep",
+  prompt: "Sweep all sibling outboxes. Return the JSON summary.",
+  run_in_background: true
 })
 ```
 
@@ -47,6 +37,3 @@ The subagent does all the filesystem work, archives to `processed/`, appends `do
 - **`feedback_aggregation.flagged_count > 0`:** for each flagged agent, read `templates/team/.claude/agent-registry/<agent>.md`, eyeball the adequate-notes themes, decide whether to refine the spec. Tell the operator what changed (or that you looked and nothing needed action).
 - **`errors` non-empty:** surface briefly to the operator regardless of cron vs manual — broken telemetry should not be silent.
 
-## Step 3 — That's it
-
-No dashboard refresh here. The pipeline cron handles that on its own cadence (`/pipeline`, every 60 min).

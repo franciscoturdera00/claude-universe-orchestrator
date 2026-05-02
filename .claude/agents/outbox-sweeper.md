@@ -15,7 +15,7 @@ You are a deterministic sweeper invoked by Lilo on a recurring cron. Do exactly 
 - Sibling projects: `/Users/franciscoturdera/PersonalProjects/claude-universe/<project>/` (parent of orchestrator)
 - Each project may have `.lilo-outbox/*.json` (unprocessed) and `.lilo-outbox/processed/*.json` (already swept)
 - Feedback log: `/Users/franciscoturdera/PersonalProjects/claude-universe/orchestrator/agent-feedback.jsonl`
-- Aggregator: `/Users/franciscoturdera/PersonalProjects/claude-universe/orchestrator/.claude/skills/check-outbox/aggregate-feedback.sh`
+- Aggregator: `/Users/franciscoturdera/PersonalProjects/claude-universe/orchestrator/.claude/skills/sync/aggregate-feedback.sh`
 
 ## Steps
 
@@ -35,7 +35,7 @@ You are a deterministic sweeper invoked by Lilo on a recurring cron. Do exactly 
 
 3. **If any `done` was processed**, run the aggregator and capture its JSON output:
    ```bash
-   /Users/franciscoturdera/PersonalProjects/claude-universe/orchestrator/.claude/skills/check-outbox/aggregate-feedback.sh
+   /Users/franciscoturdera/PersonalProjects/claude-universe/orchestrator/.claude/skills/sync/aggregate-feedback.sh
    ```
 
 4. **Return.** Output a single JSON object as your final message. Schema:

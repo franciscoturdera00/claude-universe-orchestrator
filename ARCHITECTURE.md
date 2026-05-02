@@ -60,7 +60,7 @@ operator per the routing rules in `CLAUDE.md`.
       .mcp.json              # claude-universe-tools + playwright + ios-simulator
       .claude/
         settings.json        # permissions + UserPromptSubmit startup hook
-        skills/              # new-project, nuke-project, project-status, team-ops, toolify
+        skills/              # new-project, nuke-project, pm, team-ops, toolify
       templates/
         team/                # PM scaffold with .claude/agent-registry/
       tools/                 # MCP bridge, framework lib, registry
@@ -72,7 +72,9 @@ Intent matching lives in the skill descriptions (`.claude/skills/<name>/SKILL.md
 | Intent | Skill | What it does |
 |--------|-------|-------------|
 | `new project <name>` | `new-project` + `team-ops` | Scaffold team template and launch PM in tmux |
-| `status` | `project-status` | List sibling projects and active tmux sessions |
+| `pm` / `status` | `pm` | List sibling projects and active tmux sessions |
+| `pm start <name>` | `pm` | Launch the PM tmux session for an existing project |
+| `pm stop <name>` | `pm` | Kill a PM tmux session (state persists, resume with `pm start`) |
 | `nuke <name>` | `nuke-project` | Kill session and delete project files (confirms first) |
 | `bootstrap` | (reads `BOOTSTRAP.md`) | First-run setup walkthrough |
 

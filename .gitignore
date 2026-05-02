@@ -39,9 +39,6 @@ pipeline.json
 # Pipeline config holds the Notion page id (operator-specific)
 pipeline-config.json
 
-# Operator-specific skills (kept locally, not shipped)
-.claude/skills/tailor-resume/
-
 # Tools registry and non-framework subdirs (operator-specific; use registry.example.json as template)
 tools/registry.json
 tools/*

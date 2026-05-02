@@ -25,7 +25,6 @@
       "Bash(caffeinate:*)",
       "Bash(.claude/skills/sync/render-pipeline.sh:*)",
       "Bash(.claude/skills/sync/aggregate-feedback.sh:*)",
-      "Bash(.claude/skills/sync/sessionstart-hook.sh:*)",
       "WebFetch",
       "mcp__picarx__*",
       "mcp__claude_ai_Notion__notion-update-page",
@@ -38,17 +37,5 @@
       "mcp__claude_ai_Notion__notion-update-data-source"
     ],
     "deny": []
-  },
-  "hooks": {
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": ".claude/skills/sync/sessionstart-hook.sh"
-          }
-        ]
-      }
-    ]
   }
 }

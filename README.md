@@ -60,7 +60,7 @@ From Lilo's working directory, every project is reachable at
         agents/              # Lilo's curated subagents — including outbox-sweeper
                              # and pipeline-syncer (orchestrator-only haiku workers
                              # that run the cron loop in isolated context)
-        settings.json        # permissions + SessionStart hook (invokes /sync)
+        settings.json        # permissions
         skills/              # new-project, nuke-project, pm, team-ops,
                              # sweep, pipeline, sync, poll, find-agent,
                              # kill, tailor-resume, toolify
@@ -211,13 +211,8 @@ Every new Lilo session:
    refresh the dashboard via the `pipeline-syncer` subagent
    (filesystem + scoped Notion MCP, haiku) only if the sweep returned
    new messages. `/poll off` deletes the cron.
-2. `.claude/settings.json` has a `SessionStart` hook that runs a small
-   shell gate (`.claude/skills/sync/sessionstart-hook.sh`). If at least
-   one sibling PM project exists, the hook tells Lilo to silently
-   invoke `/sync` once on the first turn — surfacing anything queued
-   while Lilo was offline and forcing a dashboard refresh. Crons are
-   never auto-registered. If no sibling projects exist, the hook stays
-   silent.
+2. To manually flush queued messages and refresh the dashboard, the
+   operator invokes `/sync`.
 3. Read `CLAUDE.md` for current routing and command semantics.
 4. Stay silent unless there is something to report.
 

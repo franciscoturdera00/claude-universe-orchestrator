@@ -95,11 +95,19 @@ Flag by flag:
   extension in Chrome first: https://claude.ai/download
 
 Lilo scaffolds, edits, and moves files autonomously, so interactive
-permission prompts will slow it down. In a sandboxed or otherwise
-trusted environment (isolated VM, dedicated server, ephemeral
-workspace), append `--dangerously-skip-permissions` to skip them. Don't
-use that flag on a machine where a mistake could touch anything you
-care about — the wide-open `Write/Edit/Read` globs in
+permission prompts will slow it down. **Recommended: run Lilo in AUTO
+permission mode** — toggle it inside the session with `Shift+Tab` until
+the footer reads `auto`. AUTO lets Lilo run allowlisted tools without
+prompting while still gating anything outside the allowlist, so the
+`.claude/settings.json` rules stay enforced. `acceptEdits` is not
+enough — it only auto-approves file edits, not the Bash and MCP calls
+Lilo needs to scaffold projects and drive tools.
+
+For a sandboxed or otherwise trusted environment (isolated VM,
+dedicated server, ephemeral workspace), you can append
+`--dangerously-skip-permissions` to bypass the allowlist entirely.
+Don't use that flag on a machine where a mistake could touch anything
+you care about — the wide-open `Write/Edit/Read` globs in
 `.claude/settings.json` assume everything inside (and one level above)
 the repo is fair game.
 

@@ -128,8 +128,9 @@ Lilo only needs four MCP integrations to do its job:
 | Plugin channel | `telegram` | Inbound messaging + outbound replies so Lilo can reach the operator on their phone — required for the outbox relay loop to be useful |
 | Extension | `claude-in-chrome` | Paired with the `--chrome` flag above — DOM-aware browser automation |
 
-The first two are defaults in `.mcp.example.json` (copy to `.mcp.json`
-on first clone); the other two come from the `--channels` plugin and
+The first two ship in `.mcp.recommended.json` (copy to `.mcp.json` on
+first clone — or leave `.mcp.json` empty for the zero-server minimum,
+Lilo still runs); the other two come from the `--channels` plugin and
 the `--chrome` extension. After first launch, run `/telegram:configure`
 inside Lilo to paste the bot token and set the access policy.
 
@@ -345,9 +346,12 @@ The tools framework is in-repo at `./tools/`. After cloning, follow the
 bridge venv, `.mcp.json`, and any platform-specific MCPs
 interactively. A few notes for the curious:
 
-1. `.mcp.example.json` ships minimal (claude-universe-tools +
-   playwright). Bootstrap copies it to `.mcp.json` (gitignored) and
-   offers platform-specific additions like `ios-simulator` on macOS.
+1. `.mcp.recommended.json` is the recommended starting point
+   (claude-universe-tools + playwright). The supported minimum is
+   zero servers — Lilo runs fine with an empty `.mcp.json`, it just
+   loses the tool-registry bridge and headless browser automation.
+   Bootstrap copies the recommended file to `.mcp.json` (gitignored)
+   and offers platform-specific additions like `ios-simulator` on macOS.
 2. `.claude/settings.json` grants Lilo read/write in this repo and its
    parent directory so it can scaffold sibling projects; adjust if your
    layout differs.

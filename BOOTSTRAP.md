@@ -10,10 +10,15 @@ Skip steps that are already done (e.g. if `USER.md` exists and looks filled in, 
 
 Three gitignored templates the operator needs locally. Check and create if missing:
 
-1. `.mcp.json` — copy from `.mcp.example.json`:
+1. `.mcp.json` — Lilo is fully operational with zero project-local MCP servers, so an empty file (or none at all) is the supported **minimum**. The committed `.mcp.recommended.json` is the **recommended** starting point: it wires `claude-universe-tools` (so registered tools are callable) and `playwright` (headless browser fallback). Copy it on first clone:
+
    ```bash
-   [ -f .mcp.json ] || cp .mcp.example.json .mcp.json
+   [ -f .mcp.json ] || cp .mcp.recommended.json .mcp.json
    ```
+
+   Two integrations Lilo expects are NOT configurable here:
+   - **Claude-in-Chrome extension** — enabled via the `--chrome` launch flag (Step 0.4 below).
+   - **Account-level connectors** (Notion, Telegram, Gmail, Calendar, HubSpot, etc.) — configured in Claude Code app settings and inherited automatically by every session. Step 2 covers the ones worth suggesting.
 
    Then offer platform-specific additions:
 

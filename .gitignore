@@ -26,7 +26,7 @@ scratchpad/
 # Operator profile — populated by bootstrap.sh from USER.md.example
 USER.md
 
-# MCP servers — copy .mcp.example.json to .mcp.json on first clone and customize
+# MCP servers — copy .mcp.recommended.json to .mcp.json on first clone (or leave .mcp.json empty / absent for the zero-server minimum)
 .mcp.json
 
 # Runtime accumulator, seeded empty in fresh clones

@@ -55,7 +55,7 @@ Local, curated specialist definitions used by the project-manager agent before f
 |---|---|---|
 | test | sonnet | General unit + integration tests |
 | tdd-guide | sonnet | Enforces write-tests-first methodology |
-| e2e-runner | sonnet | End-to-end flows via Agent Browser / Playwright |
+| e2e-runner | sonnet | End-to-end flows via Playwright + Chrome MCP for live debugging |
 | ios-sim-driver | sonnet | iOS Simulator verification — boot/install/launch, UI assertions, screenshots |
 
 ### Documentation

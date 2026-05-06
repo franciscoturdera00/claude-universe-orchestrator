@@ -21,6 +21,7 @@ see [Tool registry](#tool-registry).
   - [First-run checklist](#first-run-checklist)
   - [Operator profile (`USER.md`)](#operator-profile-usermd)
 - [How the operator drives it](#how-the-operator-drives-it)
+  - [Management skills](#management-skills)
 - [Startup ritual](#startup-ritual)
 - [Tool registry](#tool-registry)
 - [Agent registry](#agent-registry)
@@ -182,27 +183,33 @@ template, and `bootstrap` populates it for you on first boot.
 ## How the operator drives it
 
 Natural-language commands. Intent routing lives in the skill
-descriptions under `.claude/skills/`, so you just say what you want:
+descriptions under `.claude/skills/`, so you just say what you want.
+Anything actionable that doesn't match a management skill — Lilo checks
+the `claude-universe-tools` MCP and invokes a registered tool action
+before writing custom logic. To see what's currently registered: open
+`./tools/registry.json` or ask Lilo (`"what tools are registered?"`).
+Every tool exposes a `<tool>.doctor` action for a health check — e.g.
+`"run job-apply.doctor"`.
 
-- `new project <name>` — scaffold and launch the PM in tmux
-- `status` — list sibling projects and active tmux sessions
-- `nuke <name>` — delete a sibling project (Lilo always confirms first)
-- `bootstrap` — first-run setup (USER.md, MCPs, Telegram)
-- `find an agent for <role>` — vet and import a new specialist into the
-  registry (mandatory prompt-injection scan before anything lands)
-- `sweep` — manual outbox sweep (the `/sweep` cron runs every 10 min
-  automatically; dispatches the `outbox-sweeper` subagent)
-- `refresh the dashboard` / `/pipeline` — manual Notion dashboard
-  refresh (the `/pipeline` cron runs hourly at :17; dispatches the
-  `pipeline-syncer` subagent)
-- `check outbox` — manual umbrella that runs both at once
-- `kill the session` / `wrap up` — pre-exit pass: save lessons, commit
-  routine changes, branch off anything risky
-- Anything else actionable — Lilo checks the `claude-universe-tools` MCP
-  first and invokes a registered tool action before writing custom logic.
-  To see what's currently registered: open `./tools/registry.json` or
-  ask Lilo (`"what tools are registered?"`). Every tool exposes a
-  `<tool>.doctor` action for a health check — e.g. `"run job-apply.doctor"`
+### Management skills
+
+The orchestrator-level skills under `.claude/skills/` own intent
+matching, so just say what you want.
+
+| Skill | Phrase | What it does |
+|-------|--------|--------------|
+| `new-project` | `new project <name>` | Scaffolds a sibling project, auto-launches the PM in tmux. `--profile mvp\|work` picks the overlay. |
+| `pm` | `pm`, `pm start X`, `pm stop X` | Status (no args) or start/stop a PM tmux session. State persists across restarts. |
+| `sync` | `sync` | Sweeps outboxes, refreshes the Notion dashboard if anything was queued. |
+| `poll` | `poll on` / `poll off` | Toggles the recurring `/sync` cron. Off by default. |
+| `find-agent` | `find an agent for <role>` | Vets and imports a new specialist into the registry. Prompt-injection scan before anything lands. |
+| `kill` | `kill the session`, `wrap up` | Pre-exit pass: parallel subagents scan for risk, save lessons, commit routine, branch off risky. |
+| `bootstrap` | `bootstrap` | First-run setup — `.mcp.json`, `USER.md`, MCPs, Telegram. |
+
+Niche / occasional: `nuke-project` (delete a sibling project, confirms
+first), `sweep` / `pipeline` (standalone halves of `/sync`), `toolify`
+(expose a project as an MCP tool), `team-ops` (internal — PM launch,
+outbox routing, feedback aggregation). See the SKILL.md files for details.
 
 Team projects communicate back through
 `../<project>/.lilo-outbox/*.json`. The `outbox-sweeper` subagent picks

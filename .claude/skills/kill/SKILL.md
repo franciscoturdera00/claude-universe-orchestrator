@@ -7,35 +7,43 @@ description: Pre-exit scan for this Lilo session — save memory-worthy lessons 
 
 Operator is closing this Lilo session. Save what'd be lost. Take action — don't ask permission for routine stuff. The operator has pre-authorized commit + push as part of `/kill`.
 
-## Scan
+## Scan — fire in parallel
 
-1. **Memory-worthy moments** — corrections, validated unusual choices, hardware/external-system gotchas, surprising facts about the project. Cross-check against `MEMORY.md` index. Save new ones directly (no permission needed). Err on saving.
+Run these in a **single message with multiple tool calls** so they execute in parallel. The point: the heavy reads (outbox JSONs, full `git diff`) burn subagent context, not Lilo's.
 
-2. **Outbox** — silent sweep `../*/.lilo-outbox/*.json`; relay anything queued before exit.
+1. **Agent: `outbox-sweeper`** — sweep `../*/.lilo-outbox/*.json` and report queued messages.
+2. **Agent: `security-reviewer`** — scan the uncommitted diff for secrets, credential paths, and other risk markers (see below). Pass it the full risk-marker list and ask for a JSON-shaped report: `{risky: [{path, reason}], skip: [paths]}`.
+3. **Bash (batched):** `git status -s && git diff --stat && tmux ls 2>/dev/null || true` — trivial reads, run inline.
 
-3. **Running tmux** — `tmux ls`. PMs outlive Lilo; list for awareness, don't kill.
+While those run, scan **this session's transcript** for memory-worthy moments — corrections, validated unusual choices, hardware/external-system gotchas, surprising project facts. Cross-check against `MEMORY.md`. Save new ones directly; no permission needed. (Memory has to stay in the parent — subagents don't see Lilo's transcript.)
 
-4. **Uncommitted git state** — `git status -s`. Split changes into ROUTINE and RISKY (see below), then act:
-   - **Routine:** stage, draft a one-line commit message, commit, push to the current branch. Default is `main`; that's fine. Report what was done.
-   - **Risky:** stop. Stash the risky change, create a new branch named `kill/<short-slug>` off the current commit, restore the change there, commit on that branch, push the branch (do NOT merge to main). Report the branch name and why it was isolated so the operator can review.
-   - **Mixed:** split the diff per-file. Routine files go to main as one commit; risky files go to the `kill/<slug>` branch as a separate commit. Both get pushed.
+## Act
 
-### Risk markers — branch off if any apply
+Once the parallel phase returns, merge the findings and classify the uncommitted diff:
 
-- File contents look like secrets: API keys, tokens, passwords, OAuth credentials, anything matching `(?i)(api[_-]?key|secret|token|bearer|password)\s*[:=]`.
-- File path is `.env`, `.env.local`, `credentials.*`, `*.pem`, `*.key`, `id_rsa*`, `*.p12` — never commit these even on a branch; instead, list them in the output and tell the operator they were skipped entirely.
-- Large binary files (>5 MB) where intent is unclear — could be incidental.
-- Changes to `.github/workflows/`, CI config, deploy scripts, or anything that runs in shared infrastructure.
-- Changes that would require `--no-verify` to land (a precommit hook is failing). Never bypass — branch off and flag.
-- Anything you genuinely don't recognize and can't justify in one line.
+- **Skip** = `.env`, `.env.local`, `credentials.*`, `*.pem`, `*.key`, `id_rsa*`, `*.p12` — never commit, even on a branch. List in output.
+- **Risky** = whatever `security-reviewer` flagged, plus:
+  - Changes to `.github/workflows/`, CI config, deploy scripts, shared infra
+  - Large binaries (>5 MB) where intent is unclear
+  - Anything that would require `--no-verify` to land
+  - Anything you don't recognize and can't justify in one line
+- **Routine** = the remainder. Skill / agent-registry / template edits, doc edits, `.gitignore`, new `tools/` files, anything you authored this session and could explain in one sentence.
 
-### What "routine" looks like
+Then act:
 
-- Skill / agent-registry / template edits inside this repo.
-- Doc edits.
-- `.gitignore` adjustments.
-- New tools added under `tools/` with sensible content.
-- Anything you authored in this session and could explain in one sentence.
+- **Outbox queue** → relay anything the sweeper found before exit.
+- **Routine** → stage, draft a one-line commit message, commit, push to the current branch (default `main`).
+- **Risky** → stash, create branch `kill/<short-slug>` off the current commit, restore on the branch, commit, push the branch. Do NOT merge to main.
+- **Mixed** → split per-file. Routine to main as one commit; risky to `kill/<slug>` as a separate commit. Both pushed.
+- **Tmux** → list for awareness; PMs outlive Lilo, don't kill.
+
+### Risk markers reference (for the security-reviewer prompt)
+
+- File contents matching `(?i)(api[_-]?key|secret|token|bearer|password)\s*[:=]`
+- File path under `.env*`, `credentials.*`, `*.pem`, `*.key`, `id_rsa*`, `*.p12`
+- `.github/workflows/`, CI config, deploy scripts
+- Binaries >5 MB
+- Anything triggering a precommit hook failure
 
 ### Hard rules
 

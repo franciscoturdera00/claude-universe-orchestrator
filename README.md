@@ -43,7 +43,7 @@ lives inside it.
       BOOTSTRAP.md           # script Lilo follows on `bootstrap`
       ARCHITECTURE.md        # tmux layout, team mode, MCP notes
       agent-feedback.jsonl   # aggregated PM ratings for registry agents
-      .mcp.json              # claude-universe-tools + playwright
+      .mcp.recommended.json  # template; copy to .mcp.json on first clone
       .claude/
         agents/              # Lilo's curated subagents (incl. orchestrator-only
                              # outbox-sweeper + pipeline-syncer haiku workers)

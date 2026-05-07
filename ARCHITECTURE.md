@@ -57,7 +57,7 @@ operator per the routing rules in `CLAUDE.md`.
       ARCHITECTURE.md        # this file
       README.md              # repo map + setup notes
       agent-feedback.jsonl   # aggregated PM agent ratings
-      .mcp.json              # claude-universe-tools + playwright + ios-simulator
+      .mcp.recommended.json  # template; copy to .mcp.json on first clone
       .claude/
         settings.json        # permissions + UserPromptSubmit startup hook
         skills/              # new-project, nuke-project, pm, team-ops, toolify

@@ -3,78 +3,60 @@
 The control plane for the `claude-universe` workspace. A long-lived
 Claude Code session named **Lilo** that scaffolds projects, launches PM
 teams, relays their messages back to the operator, and owns the shared
-tool registry. Sibling project code is off-limits — Lilo only writes to
-this repo (which contains its own `tools/` framework) and sibling
-projects' `.lilo-inbox/` and `.lilo-outbox/`.
-
-Projects you build here can be packaged as tools Lilo calls directly —
-see [Tool registry](#tool-registry).
+tool registry. Lilo only writes to this repo and to sibling projects'
+`.lilo-inbox/` / `.lilo-outbox/` — never to sibling project code.
 
 `CLAUDE.md` is the source of truth for behavior. This file is the map.
 
 ## Contents
 
-- [Expected layout](#expected-layout)
+- [Layout](#layout)
 - [Repo contents](#repo-contents)
 - [Running Lilo](#running-lilo)
-  - [Recommended MCPs](#recommended-mcps)
-  - [First-run checklist](#first-run-checklist)
-  - [Operator profile (`USER.md`)](#operator-profile-usermd)
-- [How the operator drives it](#how-the-operator-drives-it)
-  - [Management skills](#management-skills)
-- [Startup ritual](#startup-ritual)
+- [First run](#first-run)
+- [Operator commands](#operator-commands)
+- [Communication](#communication)
 - [Tool registry](#tool-registry)
 - [Agent registry](#agent-registry)
-- [Advisor (opus on tap for sonnet PMs)](#advisor-opus-on-tap-for-sonnet-pms)
-- [Trust model](#trust-model)
+- [Advisor](#advisor)
 - [Feedback loop](#feedback-loop)
-- [Sharing / cloning this repo](#sharing--cloning-this-repo)
+- [Trust model](#trust-model)
 - [Rules](#rules)
 
-## Expected layout
+## Layout
 
-Scaffolded projects are **siblings** of this repo — they sit next to
-`orchestrator/` in a shared `claude-universe/` directory, not inside
-it. The MCP tools framework, by contrast, lives inside this repo.
+Scaffolded projects are **siblings** of this repo. The tools framework
+lives inside it.
 
     claude-universe/
       orchestrator/        <- this repo (Lilo runs here)
         tools/             <- MCP tools bridge + registry (in-repo)
-      my-project/          <- scaffolded project, path: ../my-project/
-      another-project/     <- path: ../another-project/
-
-From Lilo's working directory, every project is reachable at
-`../<name>/`. The tools framework is at `./tools/`.
+      my-project/          <- ../my-project/
+      another-project/     <- ../another-project/
 
 ## Repo contents
 
     orchestrator/
       CLAUDE.md              # Lilo's operating manual (imports @USER.md)
-      USER.md.example        # committed template for the operator profile
-      USER.md                # gitignored — your actual profile, created during `bootstrap`
-      BOOTSTRAP.md           # first-run script Lilo follows when you say `bootstrap`
+      USER.md.example        # template for the operator profile
+      USER.md                # gitignored — created during `bootstrap`
+      BOOTSTRAP.md           # script Lilo follows on `bootstrap`
       ARCHITECTURE.md        # tmux layout, team mode, MCP notes
-      README.md              # this file
       agent-feedback.jsonl   # aggregated PM ratings for registry agents
-      .mcp.json              # claude-universe-tools + playwright servers
+      .mcp.json              # claude-universe-tools + playwright
       .claude/
-        agents/              # Lilo's curated subagents — including outbox-sweeper
-                             # and pipeline-syncer (orchestrator-only haiku workers
-                             # that run the cron loop in isolated context)
+        agents/              # Lilo's curated subagents (incl. orchestrator-only
+                             # outbox-sweeper + pipeline-syncer haiku workers)
         settings.json        # permissions
-        skills/              # new-project, nuke-project, pm, team-ops,
-                             # sweep, pipeline, sync, poll, find-agent,
-                             # kill, tailor-resume, toolify
+        skills/              # see Operator commands
       templates/
         team/                # PM scaffold: agent-registry, agents/, skills/, CLAUDE.md
 
 ## Running Lilo
 
-**Prerequisite (one-time):** install the `claude-in-chrome` Chrome
-extension from https://claude.ai/download. The launch command below
-assumes it's installed; without it, `--chrome` is a no-op and
-browser-driven tools won't work. Skip only if you don't want DOM-aware
-browser automation at all — in that case, drop the `--chrome` flag.
+**Prereq:** install the `claude-in-chrome` Chrome extension from
+https://claude.ai/download (or drop the `--chrome` flag below to skip
+DOM-aware browser automation).
 
 From this repo's root:
 
@@ -82,295 +64,181 @@ From this repo's root:
 caffeinate -is claude --channels plugin:telegram@claude-plugins-official --chrome
 ```
 
-Flag by flag:
+- `caffeinate -is` — keeps the Mac awake so the cron loop keeps firing
+- `--channels plugin:telegram@...` — phone relay via the Telegram plugin
+- `--chrome` — pairs with the installed extension for browser automation
 
-- `caffeinate -i -s` — keeps the Mac awake (and prevents idle sleep)
-  while Lilo is running. Required so the outbox sweep cron keeps firing
-  overnight; without it the machine sleeps and Lilo misses PM messages.
-- `--channels plugin:telegram@claude-plugins-official` — loads the
-  official Telegram plugin channel so the operator can reach Lilo from
-  their phone and Lilo can reply with messages/files.
-- `--chrome` — attaches the `claude-in-chrome` extension so Lilo can
-  drive a browser with DOM-aware automation (useful for any tool or
-  skill that needs to navigate, read, or fill web pages). Install the
-  extension in Chrome first: https://claude.ai/download
-
-Lilo scaffolds, edits, and moves files autonomously, so interactive
-permission prompts will slow it down. **Recommended: run Lilo in AUTO
-permission mode** — toggle it inside the session with `Shift+Tab` until
-the footer reads `auto`. AUTO lets Lilo run allowlisted tools without
-prompting while still gating anything outside the allowlist, so the
-`.claude/settings.json` rules stay enforced. `acceptEdits` is not
-enough — it only auto-approves file edits, not the Bash and MCP calls
-Lilo needs to scaffold projects and drive tools.
-
-For a sandboxed or otherwise trusted environment (isolated VM,
-dedicated server, ephemeral workspace), you can append
+Run in **AUTO permission mode** (toggle with `Shift+Tab` until the
+footer reads `auto`). AUTO honours the `.claude/settings.json` allowlist
+without prompting on every call. `acceptEdits` is not enough — it skips
+file prompts but not Bash/MCP. In a sandboxed VM you can append
 `--dangerously-skip-permissions` to bypass the allowlist entirely.
-Don't use that flag on a machine where a mistake could touch anything
-you care about — the wide-open `Write/Edit/Read` globs in
-`.claude/settings.json` assume everything inside (and one level above)
-the repo is fair game.
 
-Wrap in tmux if you want the session to survive terminal restarts:
+Wrap in tmux for persistence:
 
 ```bash
 tmux new -s lilo "caffeinate -is claude --channels plugin:telegram@claude-plugins-official --chrome"
 ```
 
-### Recommended MCPs
+**MCPs Lilo uses:** `claude-universe-tools` and `playwright` (both in
+`.mcp.json`), `telegram` (from `--channels`), `claude-in-chrome` (from
+`--chrome`). Account-level MCPs (Notion, Figma, Gmail, etc.) come from
+Claude Code's own config.
 
-Lilo only needs four MCP integrations to do its job:
+## First run
 
-| Source | Name | Why |
-|--------|------|-----|
-| This repo's `.mcp.json` | `claude-universe-tools` (custom) | Dynamic bridge over `./tools/registry.json` — any registered tool becomes callable |
-| This repo's `.mcp.json` | `playwright` | Headless browser fallback for when the Chrome extension isn't the right fit |
-| Plugin channel | `telegram` | Inbound messaging + outbound replies so Lilo can reach the operator on their phone — required for the outbox relay loop to be useful |
-| Extension | `claude-in-chrome` | Paired with the `--chrome` flag above — DOM-aware browser automation |
+1. Clone into `<workspace>/claude-universe/orchestrator/`.
+2. Start Lilo with the launch command above.
+3. First prompt: `bootstrap`.
 
-The first two ship in `.mcp.recommended.json` (copy to `.mcp.json` on
-first clone — or leave `.mcp.json` empty for the zero-server minimum,
-Lilo still runs); the other two come from the `--channels` plugin and
-the `--chrome` extension. After first launch, run `/telegram:configure`
-inside Lilo to paste the bot token and set the access policy.
+Lilo reads `BOOTSTRAP.md` and walks you through `.mcp.json` (copies
+`.mcp.recommended.json`), the tools-bridge venv, `USER.md`, optional
+platform MCPs (`ios-simulator` on macOS), Telegram setup, and an
+optional smoke-test project. The supported minimum is zero servers —
+Lilo runs with an empty `.mcp.json`, just without the tool bridge or
+headless browser.
 
-### First-run checklist
+If you opted into Telegram, run `/telegram:configure` inside Lilo to
+paste the bot token and set the access policy. `/telegram:access` is
+the troubleshooting move if messages aren't getting through.
 
-1. Clone this repo into `<workspace>/claude-universe/orchestrator/`.
-2. Start Lilo with the [launch command](#running-lilo).
-3. On the very first prompt, tell Lilo:
+`USER.md` is the only file you customise per operator (name, Telegram
+`chat_id`, terseness, etc.) and is gitignored.
 
-   ```
-   bootstrap
-   ```
+**Smoke test:** `status` lists projects + tmux sessions. `new project
+smoke-test` scaffolds and launches a PM in tmux; `nuke smoke-test`
+cleans up.
 
-   Lilo reads `BOOTSTRAP.md` and walks you through the rest
-   interactively: creating `.mcp.json` from the template, running the
-   tools-bridge setup, filling out `USER.md` via a few questions,
-   offering platform-specific MCPs (e.g. `ios-simulator` on macOS),
-   setting up the Telegram bot if you want phone relay, and optionally
-   scaffolding a throwaway project as a smoke test.
+## Operator commands
 
-### Verify the setup works
-
-Once `bootstrap` finishes, you should see confirmations for: `.mcp.json`
-written, tools-bridge venv ready, `USER.md` populated, and (if you
-opted in) Telegram bot wired with a working `chat_id`. Quick smoke
-tests:
-
-- `status` — should list sibling projects (empty on first boot) and
-  live tmux sessions. No errors = MCP is reachable.
-- `new project smoke-test` — scaffolds a throwaway project and
-  auto-launches the PM in tmux. `tmux ls` should show a new session.
-  `nuke smoke-test` cleans up.
-- If Telegram is wired, DM your bot from your phone. You should see
-  the message arrive in Lilo's terminal within seconds, and Lilo's
-  reply should arrive back on Telegram. If not, run
-  `/telegram:access` to check the allowlist.
-- The `/sweep` and `/pipeline` crons register on every startup. To
-  verify, ask Lilo "are the crons registered?" and it'll check via
-  `CronList`. Should show two recurring jobs.
-
-### Operator profile (`USER.md`)
-
-`CLAUDE.md` imports `@USER.md` at the top. That file holds everything
-operator-specific — your name, Telegram `chat_id`, terseness preference,
-quiet hours — and is the one place you customise when you fork this
-repo. `USER.md` is gitignored; `USER.md.example` is the committed
-template, and `bootstrap` populates it for you on first boot.
-
-## How the operator drives it
-
-Natural-language commands. Intent routing lives in the skill
-descriptions under `.claude/skills/`, so you just say what you want.
-Anything actionable that doesn't match a management skill — Lilo checks
-the `claude-universe-tools` MCP and invokes a registered tool action
-before writing custom logic. To see what's currently registered: open
-`./tools/registry.json` or ask Lilo (`"what tools are registered?"`).
-Every tool exposes a `<tool>.doctor` action for a health check — e.g.
-`"run job-apply.doctor"`.
-
-### Management skills
-
-The orchestrator-level skills under `.claude/skills/` own intent
-matching, so just say what you want.
+Natural-language. Intent routing lives in the skill descriptions under
+`.claude/skills/` — just say what you want. Anything actionable that
+isn't a management skill: Lilo checks the `claude-universe-tools` MCP
+for a registered tool action before writing custom logic.
 
 | Skill | Phrase | What it does |
 |-------|--------|--------------|
-| `new-project` | `new project <name>` | Scaffolds a sibling project, auto-launches the PM in tmux. `--profile mvp\|work` picks the overlay. |
-| `pm` | `pm`, `pm start X`, `pm stop X` | Status (no args) or start/stop a PM tmux session. State persists across restarts. |
-| `sync` | `sync` | Sweeps outboxes, refreshes the Notion dashboard if anything was queued. |
-| `poll` | `poll on` / `poll off` | Toggles the recurring `/sync` cron. Off by default. |
-| `find-agent` | `find an agent for <role>` | Vets and imports a new specialist into the registry. Prompt-injection scan before anything lands. |
-| `kill` | `kill the session`, `wrap up` | Pre-exit pass: parallel subagents scan for risk, save lessons, commit routine, branch off risky. |
-| `bootstrap` | `bootstrap` | First-run setup — `.mcp.json`, `USER.md`, MCPs, Telegram. |
+| `bootstrap` | `bootstrap` | First-run setup |
+| `new-project` | `new project <name>` | Scaffolds a sibling, auto-launches PM tmux. `--profile mvp\|work` picks an overlay. |
+| `pm` | `pm`, `pm start X`, `pm stop X` | Status, or start/stop a PM tmux session |
+| `sync` | `sync` | Sweep outboxes, refresh dashboard if anything queued |
+| `poll` | `poll on` / `poll off` | Toggle the recurring `/sync` cron (off by default) |
+| `find-agent` | `find an agent for <role>` | Vet + import a specialist into the registry |
+| `kill` | `kill the session`, `wrap up` | Pre-exit pass: scan, save lessons, commit routine, branch off risky |
 
-Niche / occasional: `nuke-project` (delete a sibling project, confirms
-first), `sweep` / `pipeline` (standalone halves of `/sync`), `toolify`
-(expose a project as an MCP tool), `team-ops` (internal — PM launch,
-outbox routing, feedback aggregation). See the SKILL.md files for details.
+Niche: `nuke-project`, `sweep` / `pipeline` (halves of `/sync`),
+`toolify` (expose a project as an MCP tool), `team-ops` (internal — PM
+launch, outbox routing, feedback aggregation).
 
-Team projects communicate back through
-`../<project>/.lilo-outbox/*.json`. The `outbox-sweeper` subagent picks
-them up every 10 min and Lilo relays per the routing rules in
-`CLAUDE.md`.
+## Communication
 
-## Startup ritual
+The PM <-> Lilo <-> operator loop runs on filesystem messages and a
+scheduled sweep.
 
-Every new Lilo session:
+- **PM -> Lilo:** PMs write JSON messages into
+  `../<project>/.lilo-outbox/`. Each carries a type and priority
+  (schema in `team-ops`).
+- **Sweep:** the `outbox-sweeper` subagent (haiku, filesystem-only,
+  isolated context) scans every sibling outbox, archives processed
+  messages, and returns a JSON summary to Lilo. Burns subagent
+  context, not Lilo's.
+- **Lilo -> operator:** Lilo relays per the routing rules in
+  `CLAUDE.md` — urgent/blocker pings immediately, status/low batches,
+  ratings flow into the registry feedback loop. Channel is whichever
+  you're on (Telegram if remote, terminal if local — never both).
+- **Operator -> PM:** Lilo doesn't push to PMs unless asked. To send
+  something into a PM, drop a file into `../<project>/.lilo-inbox/`.
 
-1. Recurring polling is **off by default**. The operator opts in with
-   `/poll on` — registers a single recurring `/sync` cron at
-   `7,37 * * * *`. Each tick runs `/sync`: sweep first via the
-   `outbox-sweeper` subagent (filesystem-only, haiku), and conditionally
-   refresh the dashboard via the `pipeline-syncer` subagent
-   (filesystem + scoped Notion MCP, haiku) only if the sweep returned
-   new messages. `/poll off` deletes the cron.
-2. To manually flush queued messages and refresh the dashboard, the
-   operator invokes `/sync`.
-3. Read `CLAUDE.md` for current routing and command semantics.
-4. Stay silent unless there is something to report.
+`/sync` runs the sweep and, only if new messages were found,
+dispatches the `pipeline-syncer` subagent to refresh the Notion
+dashboard. Steady state is zero Notion calls when nothing's queued.
+
+`/poll on` registers `/sync` as a recurring cron at `7,37 * * * *`
+(twice an hour). `/poll off` deletes it. **Off by default** — the
+operator opts in. Run `/sync` manually anytime to flush on demand.
 
 ## Tool registry
 
-This is the "build a tool with Lilo, then let Lilo call it" loop. It
-closes the circle from scaffolding projects to using them as
-capabilities.
+The "build a tool with Lilo, then let Lilo call it" loop:
 
-**The workflow:**
-
-1. Ask Lilo to scaffold a new project (`new project: my-tool`). Build
-   whatever you want in there — a script, a pipeline, an API wrapper,
-   anything with a clear input/output.
-2. When it's working, ask Lilo to `toolify my-tool`. The `toolify`
-   skill packages the project against the standard tool interface and
-   registers it in `./tools/registry.json`.
-3. Restart the MCP bridge. That tool is now callable from Lilo as
-   `<my-tool>.<action>` (e.g. `my-tool.run`, `my-tool.doctor`). No
-   per-tool skill, no orchestrator code change — just a new entry in
-   the registry.
-4. Next time you ask Lilo for something that matches a registered
-   tool, it invokes the MCP action instead of shelling out or writing
-   the logic from scratch.
-
-This opens the door to anything you can script. A home-automation
-server, a fleet monitor for your own servers, a personal bookkeeping
-pipeline, a news scraper, a fitness log — scaffold it as a project,
-build it out, toolify it, and Lilo can call it. If you can write it,
-Lilo can invoke it.
+1. `new project: my-tool` — build whatever you want in there.
+2. `toolify my-tool` — packages it against the standard tool interface
+   and registers it in `./tools/registry.json`.
+3. Restart the MCP bridge. The tool is callable as `<my-tool>.<action>`
+   (every tool exposes a `<tool>.doctor` health check).
+4. Next request that matches a registered tool, Lilo invokes the MCP
+   action instead of writing logic from scratch.
 
 `./tools/registry.json` is the single source of truth for what's
-callable. Every tool exposes a `<tool>.doctor` action for on-demand
-health checks. `registry.example.json` ships an empty template for
-fresh clones.
+callable. `registry.example.json` is the empty template for fresh clones.
 
 ## Agent registry
 
 `templates/team/.claude/agent-registry/` is the curated specialist
-roster PMs recruit from before falling back to any external marketplace.
-The roster is a mix of:
+roster PMs recruit from. A mix of:
 
-- **Custom agents** — written for this orchestrator (e.g. `code`, the
-  scope-disciplined general implementer, plus PM-facing specialists like
-  `scraper`, `db-designer`, `api-integrator`, `devops`, `frontend`,
-  `data-pipeline`, `docs`, `test`, `security-reviewer`, `design-critic`,
-  `document-critic`, `ios-sim-driver`, `team-historian`,
-  `lora-prompt-builder`, `stitch-operator`)
-- **Imported from `everything-claude-code`** (github.com/affaan-m/everything-claude-code,
-  MIT-licensed) — reviewed for prompt-injection safety per agent before
-  import, lightly adapted. Includes `code-architect`, `code-reviewer`,
-  `code-simplifier`, `refactor-cleaner`, `performance-optimizer`,
-  `build-error-resolver`, `type-design-analyzer`, `silent-failure-hunter`,
-  `comment-analyzer`, `pr-test-analyzer`, `typescript-reviewer`,
-  `python-reviewer`, `tdd-guide`, `e2e-runner`, `doc-updater`,
-  `docs-lookup`, `a11y-architect`, `seo-specialist`
+- **Custom agents** for this orchestrator (`code`, `scraper`,
+  `db-designer`, `api-integrator`, `devops`, `frontend`, `data-pipeline`,
+  `docs`, `test`, `security-reviewer`, `design-critic`, `document-critic`,
+  `ios-sim-driver`, `team-historian`, `lora-prompt-builder`,
+  `stitch-operator`)
+- **Imported from `everything-claude-code`**
+  (github.com/affaan-m/everything-claude-code, MIT) — prompt-injection
+  scanned per agent before import. Includes `code-architect`,
+  `code-reviewer`, `code-simplifier`, `refactor-cleaner`,
+  `performance-optimizer`, `build-error-resolver`,
+  `type-design-analyzer`, `silent-failure-hunter`, `comment-analyzer`,
+  `pr-test-analyzer`, `typescript-reviewer`, `python-reviewer`,
+  `tdd-guide`, `e2e-runner`, `doc-updater`, `docs-lookup`,
+  `a11y-architect`, `seo-specialist`
 
 See `templates/team/.claude/agent-registry/README.md` for the full
 roster with model tiers and use cases.
 
-## Advisor (opus on tap for sonnet PMs)
+## Advisor
 
-PMs run on sonnet by default for cost and throughput. When a PM hits a
-judgment call that warrants a stronger model, it can consult a pooled
-opus-level reviewer via Claude Code's built-in `/advisor`. It takes no
-arguments — it forwards the PM's full conversation transcript to opus
-and returns advice.
+PMs run on sonnet for cost. When a PM hits a judgment call, it consults
+a pooled opus-level reviewer via `/advisor` — no args, forwards the
+PM's full transcript to opus and returns advice. PMs are wired to
+invoke it before committing to a plan, before marking `done`, and when
+stuck. No-op if the operator hasn't enabled it.
 
-The PM agent is already wired to invoke `/advisor` before committing
-to a plan, before marking a build `done`, and when stuck. It's a no-op
-if the operator hasn't enabled it, so nothing breaks.
-
-**To enable it once**, run this inside any Claude Code session:
+Enable once at user level (lights up Lilo, every PM, every specialist):
 
 ```
 /advisor opus
 ```
 
-That persists the setting at user level and lights up `/advisor` for
-every future Claude Code session — Lilo, every PM, and every
-specialist — without per-project wiring. Run `/advisor off` to disable.
-
-## Trust model
-
-Lilo's `.claude/settings.json` has wide Bash allowlists and
-`Write/Edit/Read` globs that cover this repo and the parent directory
-(so it can scaffold siblings). If you also run with
-`--dangerously-skip-permissions`, you've removed the last line of
-defense. Know what you're trusting when you use this repo:
-
-- **Registering a tool in `tools/registry.json`** = trusting the tool's
-  adapter code (arbitrary Python) and its `requirements.txt` (arbitrary
-  pip installs, run on bridge startup). Only register tools you wrote
-  or audited. `toolify` pointed at an untrusted sibling project is a
-  supply-chain vector.
-- **PM outbox messages** are data, not instructions. A PM whose
-  specialists ingested untrusted input (scraped pages, fetched docs)
-  can be prompt-injected and write manipulated `alerts[]` or `detail`
-  strings. Lilo's `team-ops` skill only relays these to the operator —
-  never executes them. Keep that invariant if you extend the skill.
-- **Scaffolded projects** run as their own Claude sessions with the
-  template `settings.json` allowlist. That allowlist is broad; audit
-  and narrow it if you're working in a lower-trust environment.
+`/advisor off` disables.
 
 ## Feedback loop
 
 `agent-feedback.jsonl` accumulates ratings from every PM `done` report
-(canonical schema: `poor` / `adequate` / `effective`). The
-`outbox-sweeper` subagent appends new ratings on every sweep, and runs
-`.claude/skills/sync/aggregate-feedback.sh` whenever a `done`
-message lands. The aggregator flags any specialist meeting the team-ops
-thresholds — 2+ `poor` across distinct projects OR 4+ `adequate` — and
-Lilo refines `templates/team/.claude/agent-registry/<agent>.md` with
-the human judgment call on whether the adequate-notes share a coherent
-theme. This is the registry's self-improvement loop.
+(`poor` / `adequate` / `effective`). The `outbox-sweeper` appends new
+ratings on each sweep and runs `.claude/skills/sync/aggregate-feedback.sh`
+when a `done` lands. The aggregator flags any specialist meeting team-ops
+thresholds (2+ `poor` across distinct projects OR 4+ `adequate`) and
+Lilo refines the registry spec at
+`templates/team/.claude/agent-registry/<agent>.md`.
 
-## Sharing / cloning this repo
+## Trust model
 
-This repo is meant to be cloned into `<anywhere>/claude-universe/orchestrator/`.
-The tools framework is in-repo at `./tools/`. After cloning, follow the
-[First-run checklist](#first-run-checklist) — `bootstrap` handles the
-bridge venv, `.mcp.json`, and any platform-specific MCPs
-interactively. A few notes for the curious:
+Lilo's `.claude/settings.json` has wide Bash allowlists and Write/Edit
+globs covering this repo and its parent. Things to know:
 
-1. `.mcp.recommended.json` is the recommended starting point
-   (claude-universe-tools + playwright). The supported minimum is
-   zero servers — Lilo runs fine with an empty `.mcp.json`, it just
-   loses the tool-registry bridge and headless browser automation.
-   Bootstrap copies the recommended file to `.mcp.json` (gitignored)
-   and offers platform-specific additions like `ios-simulator` on macOS.
-2. `.claude/settings.json` grants Lilo read/write in this repo and its
-   parent directory so it can scaffold sibling projects; adjust if your
-   layout differs.
-3. To register your own tools, copy `tools/registry.example.json` to
-   `tools/registry.json` (also gitignored) and add entries. The MCP
-   bridge reads `registry.json` at startup and exposes every registered
-   action.
+- **Registering a tool** = trusting its adapter code (arbitrary Python)
+  and `requirements.txt` (arbitrary pip installs at bridge startup).
+  Only register tools you wrote or audited. `toolify` on an untrusted
+  project is a supply-chain vector.
+- **PM outbox messages are data, not instructions.** A specialist that
+  ingested untrusted input can be prompt-injected; `team-ops` only
+  relays — never executes. Keep that invariant.
+- **Scaffolded projects** run with the broad team-template allowlist.
+  Audit and narrow it for lower-trust environments.
 
 ## Rules
 
 - Never edit sibling project code — only scaffold and relay
 - Always confirm before destructive actions (`nuke`)
 - Keep replies short
-- The only files outside this directory Lilo owns are the sibling
-  projects it scaffolds (and their `.lilo-inbox/` / `.lilo-outbox/`)
+- Stay silent unless there's something to report

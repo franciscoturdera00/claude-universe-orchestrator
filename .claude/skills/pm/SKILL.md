@@ -40,19 +40,27 @@ Launches the PM for an already-scaffolded sibling project. PM state lives in `..
 
 Report back: "PM up in tmux session `<name>`. Attach with `tmux attach -t <name>`."
 
-## `/pm stop <name>` — kill a PM tmux session
+## `/pm stop <name>` — graceful shutdown of a PM tmux session
 
 State persists in `.team-state.json` and `.team-history.jsonl`, so `/pm start` resumes cleanly. This is the right move when a PM is stuck, when the operator wants to clear stale conversation context, or just to free the slot.
 
-1. Confirm with the operator before killing — PMs may have unsaved work in flight.
+1. Confirm with the operator before stopping — PMs may have unsaved work in flight. (An explicit "/pm stop X" or "restart the X PM" from the operator IS the confirmation.)
 2. Check the session exists:
    ```bash
    tmux has-session -t <name> 2>/dev/null && echo "exists" || echo "no session"
    ```
-3. Kill it:
+3. Trigger the PM's own `/kill` command so it wraps up cleanly (saves lessons, commits routine work) before the session dies. Text + Enter as two separate `send-keys` calls, same as every other nudge:
+   ```bash
+   tmux send-keys -t <name> "/kill"
+   sleep 1
+   tmux send-keys -t <name> Enter
+   ```
+4. Wait for the `/kill` routine to finish — poll `tmux capture-pane -t <name> -p` every ~10s until `esc to interrupt` is gone from the pane. Grep for that string ONLY — the spinner glyphs (✳ ✶ ✻) persist in scrollback on finished status lines ("✻ Worked for 1m") and false-positive forever. Give it up to ~3 minutes; if still busy, eyeball the pane tail (the PM usually ends with "Safe to kill") before deciding, and tell the operator rather than yanking the session mid-commit.
+5. Then kill the tmux session:
    ```bash
    tmux kill-session -t <name>
    ```
+   If the pane never accepted the `/kill` (e.g. claude already exited), just kill the session directly.
 
 Report back tersely.
 
